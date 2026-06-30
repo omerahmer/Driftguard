@@ -1,0 +1,55 @@
+# Cargo workspace root.
+#
+# Two crates today (core + cli); a third, driftguard-api (axum), is added only in
+# Phase 6. The split is deliberate and interview-defensible: ALL business logic
+# lives in driftguard-core as plain functions/structs, and the delivery
+# mechanisms (CLI now, HTTP later) are thin layers that call into it. The core
+# never imports clap, axum, or anything delivery-specific.
+[workspace]
+resolver = "3"
+members = ["crates/driftguard-core", "crates/driftguard-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+# Centralized dependency versions. Member crates opt in with `workspace = true`
+# and only pull what they actually use, so the dependency surface of each crate
+# stays honest while versions stay consistent across the workspace.
+[workspace.dependencies]
+# Async runtime. The whole tool is I/O-bound (Postgres round-trips in every
+# phase, HTTP to the Anthropic API from Phase 3 on), so an async runtime lets a
+# batch command keep many in-flight requests without a thread per request.
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+# sqlx: async, compile-time-checked queries. tls-native-tls so the same binary
+# can talk to a managed Postgres over TLS later without a code change.
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "macros",
+    "migrate",
+] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling. anyhow = application-level (the binary just wants a clean,
+# contextual error to print); thiserror = library-level (core defines named
+# variants callers can match on). Each is introduced with a fuller comment at
+# its first real use.
+anyhow = "1"
+thiserror = "2"
+
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "native-tls",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
