@@ -1,0 +1,18 @@
+[package]
+name = "driftguard-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Phase 1 keeps core's dependency surface to just sqlx: the only logic here so
+# far is establishing a connection pool. serde/thiserror/uuid/etc. get added in
+# the phase that first needs them, so the manifest always reflects real usage.
+[dependencies]
+sqlx = { workspace = true }
+
+# Dev-dependencies power the `examples/` smoke test (and, later, tests). They
+# don't ship in the library's public dependency set.
+[dev-dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+dotenvy = { workspace = true }
