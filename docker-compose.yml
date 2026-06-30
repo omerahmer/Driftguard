@@ -1,0 +1,31 @@
+# Local-dev Postgres with pgvector preinstalled.
+#
+# Why a single Postgres+pgvector instance instead of Postgres + a dedicated
+# vector DB (Pinecone/Weaviate/Qdrant): at this project's data scale (hundreds
+# to low-thousands of eval cases and prompt versions), a second datastore buys
+# us no throughput we can measure, but it doubles the operational surface —
+# another service to run, migrate, back up, and keep consistent with the
+# relational data. pgvector keeps embeddings transactionally co-located with the
+# rows they describe (eval cases, prompt versions), so a SelectionRecord and the
+# vectors it was computed from can never drift out of sync. We can revisit if we
+# ever outgrow a single node, but that is a scaling problem we do not have.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: driftguard-db
+    environment:
+      POSTGRES_USER: driftguard
+      POSTGRES_PASSWORD: driftguard
+      POSTGRES_DB: driftguard
+    ports:
+      - "5433:5432" # host 5433 to avoid colliding with a local Postgres on 5432
+    volumes:
+      - driftguard-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driftguard -d driftguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  driftguard-pgdata:
