@@ -17,7 +17,10 @@ precision/recall result** for that selection, not just a working CLI.
   once and **multiplexes id-tagged requests** over its stdio, running many in
   flight at once (`--concurrency`, default 6) against one reused HTTP client.
   The judge (Opus 4.8) uses schema-forced JSON with thinking off; the SDK
-  handles 429/5xx retries. All behind the `Llm` trait.
+  handles 429/5xx retries. All behind the `Llm` trait. Models are configurable
+  via env (`DRIFTGUARD_MODEL_UNDER_TEST`, `DRIFTGUARD_JUDGE_MODEL`,
+  `VOYAGE_MODEL`) — no rebuild needed; point the model under test at whatever
+  your production app runs.
 - Errors: `anyhow` (app-level) + `thiserror` (library-level)
 
 ## Workspace layout
