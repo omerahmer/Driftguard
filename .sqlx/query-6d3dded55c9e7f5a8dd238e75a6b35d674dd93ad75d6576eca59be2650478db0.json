@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             count(*) FILTER (WHERE human_agreed) AS \"agreed!\",\n             count(*) FILTER (WHERE human_agreed IS NOT NULL) AS \"total!\"\n           FROM behavior_diffs",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "agreed!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "total!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "6d3dded55c9e7f5a8dd238e75a6b35d674dd93ad75d6576eca59be2650478db0"
+}
