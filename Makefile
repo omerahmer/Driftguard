@@ -20,6 +20,7 @@ verify:
 	cargo run -p driftguard-core --example verify_pgvector
 	cargo run -p driftguard-core --example verify_selection
 	cargo run -p driftguard-core --example verify_validation
+	cargo run -p driftguard-core --example verify_ci
 
 test:
 	cargo test --workspace

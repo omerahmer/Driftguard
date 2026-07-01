@@ -154,7 +154,7 @@ You are a test agent.
     };
 
     load_fixtures(&pool, &fixtures, true).await?;
-    let summary = validate_fixtures(&pool, &MockLlm, &MockEmbedder, &fixtures, 0.5).await?;
+    let summary = validate_fixtures(&pool, &MockLlm, &MockEmbedder, &fixtures, 0.5, 4).await?;
     println!(
         "validated: {} prompt(s), {} edit(s), {} eval run(s), {} behavior diff(s)",
         summary.prompts, summary.edits, summary.eval_runs, summary.behavior_diffs

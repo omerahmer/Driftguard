@@ -12,9 +12,12 @@ precision/recall result** for that selection, not just a working CLI.
 - Async: `tokio`
 - DB: PostgreSQL + pgvector via `sqlx` (async, compile-time-checked queries)
 - Embeddings: Voyage AI via `reqwest` (Phase 3)
-- LLM (generate + judge): a **Go sidecar** (`tools/driftguard-llm`) using the
-  official `anthropic-sdk-go`, spawned from Rust per call — there is no official
-  Rust SDK, so the LLM client rides the maintained Go SDK behind the `Llm` trait
+- LLM (generate + judge): a **long-lived Go sidecar** (`tools/driftguard-llm`)
+  using the official `anthropic-sdk-go` (no official Rust SDK). Rust starts it
+  once and **multiplexes id-tagged requests** over its stdio, running many in
+  flight at once (`--concurrency`, default 6) against one reused HTTP client.
+  The judge (Opus 4.8) uses schema-forced JSON with thinking off; the SDK
+  handles 429/5xx retries. All behind the `Llm` trait.
 - Errors: `anyhow` (app-level) + `thiserror` (library-level)
 
 ## Workspace layout
@@ -139,11 +142,31 @@ driftguard score --json   # for the Phase 6 dashboard chart
 
 `run-evals` and `score` also exist as standalone building blocks.
 
+## CI gate (Phase 5)
+
+`.github/workflows/driftguard.yml` runs on PRs that change
+`fixtures/driftguard-fixtures.toml`. It diffs the base vs PR version of each
+prompt, predicts which eval cases the change affects, runs **only those** against
+the new prompt version, judges pass/fail, and posts a sticky PR comment. The
+check fails on a selected-eval failure unless the repo variable
+`DRIFTGUARD_FAIL_ON_EVAL_FAILURE` is `false`.
+
+- Repo secrets: `VOYAGE_API_KEY`, `ANTHROPIC_API_KEY`.
+- Repo variables (optional): `DRIFTGUARD_THRESHOLD` (default 0.5),
+  `DRIFTGUARD_FAIL_ON_EVAL_FAILURE` (default `true`).
+- The `driftguard ci --base <file> --head <file>` command is the building block
+  (emits the Markdown comment, or `--json`; exit code is the gate).
+
+```bash
+# Reproduce the CI decision locally against two fixtures snapshots:
+driftguard ci --base /tmp/base.toml --head fixtures/driftguard-fixtures.toml
+```
+
 ## Build phases
 
 1. **Cargo workspace + DB schema + migrations** ✅
 2. **CLI scaffolding + prompt versioning/diffing** ✅
 3. **Embedding + similarity-based eval selection** ✅
-4. **Ground-truth validation pipeline (precision/recall)** ✅ (current)
-5. GitHub Action integration
+4. **Ground-truth validation pipeline (precision/recall)** ✅
+5. **GitHub Action integration** ✅ (current)
 6. axum API + React dashboard

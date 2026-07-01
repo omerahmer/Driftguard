@@ -1,0 +1,127 @@
+# Driftguard — affected-eval selection on prompt PRs.
+#
+# When a PR changes the prompt fixtures file, this workflow predicts which eval
+# cases the change affects, runs ONLY those against the new prompt version, and
+# posts (or updates) a sticky PR comment with pass/fail. It fails the check when
+# a selected eval fails, unless the `DRIFTGUARD_FAIL_ON_EVAL_FAILURE` repo
+# variable is set to "false".
+#
+# Requirements (repo settings → Secrets and variables → Actions):
+#   secrets:   VOYAGE_API_KEY, ANTHROPIC_API_KEY
+#   variables: DRIFTGUARD_THRESHOLD (optional, default 0.5)
+#              DRIFTGUARD_FAIL_ON_EVAL_FAILURE (optional, default "true")
+#
+# Note: secrets aren't available to PRs from forks, so this runs on same-repo PRs.
+
+name: Driftguard
+
+on:
+  pull_request:
+    paths:
+      - "fixtures/driftguard-fixtures.toml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  eval-selection:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: driftguard
+          POSTGRES_PASSWORD: driftguard
+          POSTGRES_DB: driftguard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U driftguard -d driftguard"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://driftguard:driftguard@localhost:5432/driftguard
+      SQLX_OFFLINE: "true"
+      DRIFTGUARD_LLM_BIN: ./tools/driftguard-llm/driftguard-llm
+      VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need the base commit to extract the pre-change fixtures
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: tools/driftguard-llm/go.sum
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Apply DB migrations
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          for f in $(ls migrations/*.sql | sort); do
+            echo "applying $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Build Go LLM sidecar
+        run: cd tools/driftguard-llm && go build -o driftguard-llm .
+
+      - name: Build CLI (sqlx offline)
+        run: cargo build -p driftguard-cli
+
+      - name: Extract base (pre-change) fixtures
+        run: |
+          if git show "${{ github.event.pull_request.base.sha }}:fixtures/driftguard-fixtures.toml" > /tmp/base-fixtures.toml 2>/dev/null; then
+            echo "extracted base fixtures"
+          else
+            echo "no base fixtures (new file) — treating base as empty"
+            printf 'prompts = []\n' > /tmp/base-fixtures.toml
+          fi
+
+      - name: Run Driftguard CI selection
+        id: ci
+        run: |
+          WARN_FLAG=""
+          if [ "${{ vars.DRIFTGUARD_FAIL_ON_EVAL_FAILURE }}" = "false" ]; then
+            WARN_FLAG="--warn-only"
+          fi
+          set +e
+          ./target/debug/driftguard ci \
+            --base /tmp/base-fixtures.toml \
+            --head fixtures/driftguard-fixtures.toml \
+            --threshold "${{ vars.DRIFTGUARD_THRESHOLD || '0.5' }}" \
+            $WARN_FLAG > /tmp/comment.md
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          echo "----- comment -----"
+          cat /tmp/comment.md
+
+      - name: Find existing Driftguard comment
+        uses: peter-evans/find-comment@v3
+        id: found
+        if: always()
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: github-actions[bot]
+          body-includes: "<!-- driftguard-ci -->"
+
+      - name: Post / update PR comment
+        uses: peter-evans/create-or-update-comment@v4
+        if: always()
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.found.outputs.comment-id }}
+          edit-mode: replace
+          body-path: /tmp/comment.md
+
+      - name: Gate on eval failures
+        if: always() && steps.ci.outputs.exit_code != '0'
+        run: |
+          echo "A selected eval failed (or the CI step errored). Failing the check."
+          exit 1

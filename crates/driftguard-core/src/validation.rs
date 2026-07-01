@@ -11,6 +11,7 @@
 //!
 //! Calls are sequential (your decision): simplest, no rate-limit handling.
 
+use futures::stream::{self, StreamExt, TryStreamExt};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -34,12 +35,14 @@ pub struct ValidationSummary {
 }
 
 /// Generate actual_output for every eval case against one version, overwriting
-/// any prior runs for that version (idempotent re-runs — your decision).
+/// any prior runs for that version. `concurrency` API calls run in flight at
+/// once against the persistent sidecar.
 pub async fn run_evals<L: Llm>(
     pool: &Pool,
     llm: &L,
     prompt_name: &str,
     version_ref: &str,
+    concurrency: usize,
 ) -> Result<usize, CoreError> {
     let prompt = get_prompt_by_name(pool, prompt_name)
         .await?
@@ -54,18 +57,27 @@ pub async fn run_evals<L: Llm>(
     .execute(pool)
     .await?;
 
-    for case in &cases {
-        let output = llm.generate(&version.content, &case.input).await?;
-        sqlx::query!(
-            "INSERT INTO eval_runs (prompt_version_id, eval_case_id, actual_output)
-             VALUES ($1, $2, $3)",
-            version.id,
-            case.id,
-            output
-        )
-        .execute(pool)
-        .await?;
-    }
+    // Generate + insert each case concurrently (bounded).
+    stream::iter(cases.iter().map(|case| {
+        let version = &version;
+        async move {
+            let output = llm.generate(&version.content, &case.input).await?;
+            sqlx::query!(
+                "INSERT INTO eval_runs (prompt_version_id, eval_case_id, actual_output)
+                 VALUES ($1, $2, $3)",
+                version.id,
+                case.id,
+                output
+            )
+            .execute(pool)
+            .await?;
+            Ok::<(), CoreError>(())
+        }
+    }))
+    .buffer_unordered(concurrency.max(1))
+    .try_collect::<Vec<_>>()
+    .await?;
+
     Ok(cases.len())
 }
 
@@ -76,6 +88,7 @@ pub async fn validate_fixtures<L: Llm, E: Embedder>(
     embedder: &E,
     fixtures: &Fixtures,
     threshold: f64,
+    concurrency: usize,
 ) -> Result<ValidationSummary, CoreError> {
     let mut summary = ValidationSummary::default();
 
@@ -90,8 +103,8 @@ pub async fn validate_fixtures<L: Llm, E: Embedder>(
         summary.prompts += 1;
 
         // Base version (v1): generate + judge A once.
-        run_evals(pool, llm, &fp.name, "v1").await?;
-        judge_pass_for_version(pool, llm, &prompt, &cases, "v1").await?;
+        run_evals(pool, llm, &fp.name, "v1", concurrency).await?;
+        judge_pass_for_version(pool, llm, &prompt, &cases, "v1", concurrency).await?;
         summary.versions_evaluated += 1;
         summary.eval_runs += cases.len();
 
@@ -99,9 +112,10 @@ pub async fn validate_fixtures<L: Llm, E: Embedder>(
         for (index, _edit) in fp.edits.iter().enumerate() {
             let after_ref = format!("v{}", index + 2);
 
-            run_evals(pool, llm, &fp.name, &after_ref).await?;
-            judge_pass_for_version(pool, llm, &prompt, &cases, &after_ref).await?;
-            behavior_diffs_for_edit(pool, llm, &prompt, &cases, "v1", &after_ref).await?;
+            run_evals(pool, llm, &fp.name, &after_ref, concurrency).await?;
+            judge_pass_for_version(pool, llm, &prompt, &cases, &after_ref, concurrency).await?;
+            behavior_diffs_for_edit(pool, llm, &prompt, &cases, "v1", &after_ref, concurrency)
+                .await?;
 
             // Phase 3 selection on the changed version, then label ground truth.
             selection::select_evals(pool, embedder, &fp.name, &after_ref, threshold).await?;
@@ -117,36 +131,44 @@ pub async fn validate_fixtures<L: Llm, E: Embedder>(
     Ok(summary)
 }
 
-/// Judge Question A for every eval run of one version.
+/// Judge Question A for every eval run of one version (bounded-concurrent).
 async fn judge_pass_for_version<L: Llm>(
     pool: &Pool,
     llm: &L,
     prompt: &Prompt,
     cases: &[EvalCase],
     version_ref: &str,
+    concurrency: usize,
 ) -> Result<(), CoreError> {
     let version = resolve_version_ref(pool, prompt, version_ref).await?;
-    for case in cases {
-        let output = fetch_output(pool, version.id, case.id).await?;
-        let verdict = llm
-            .judge_pass(&case.expected_behavior, &case.input, &output)
+    stream::iter(cases.iter().map(|case| {
+        let version = &version;
+        async move {
+            let output = fetch_output(pool, version.id, case.id).await?;
+            let verdict = llm
+                .judge_pass(&case.expected_behavior, &case.input, &output)
+                .await?;
+            sqlx::query!(
+                "UPDATE eval_runs SET judge_passed = $1, judge_justification = $2
+                 WHERE prompt_version_id = $3 AND eval_case_id = $4",
+                verdict.passed,
+                verdict.justification,
+                version.id,
+                case.id
+            )
+            .execute(pool)
             .await?;
-        sqlx::query!(
-            "UPDATE eval_runs SET judge_passed = $1, judge_justification = $2
-             WHERE prompt_version_id = $3 AND eval_case_id = $4",
-            verdict.passed,
-            verdict.justification,
-            version.id,
-            case.id
-        )
-        .execute(pool)
-        .await?;
-    }
+            Ok::<(), CoreError>(())
+        }
+    }))
+    .buffer_unordered(concurrency.max(1))
+    .try_collect::<Vec<_>>()
+    .await?;
     Ok(())
 }
 
 /// Judge Question B for an edit, writing one BehaviorDiff per case (overwriting
-/// any prior diff for the same before/after/case triple).
+/// any prior diff for the same before/after/case triple). Bounded-concurrent.
 async fn behavior_diffs_for_edit<L: Llm>(
     pool: &Pool,
     llm: &L,
@@ -154,46 +176,54 @@ async fn behavior_diffs_for_edit<L: Llm>(
     cases: &[EvalCase],
     before_ref: &str,
     after_ref: &str,
+    concurrency: usize,
 ) -> Result<(), CoreError> {
     let before = resolve_version_ref(pool, prompt, before_ref).await?;
     let after = resolve_version_ref(pool, prompt, after_ref).await?;
 
-    for case in cases {
-        let before_output = fetch_output(pool, before.id, case.id).await?;
-        let after_output = fetch_output(pool, after.id, case.id).await?;
-        let verdict = llm
-            .judge_behavior(
-                &case.input,
-                &case.expected_behavior,
-                &before_output,
-                &after_output,
-            )
-            .await?;
+    stream::iter(cases.iter().map(|case| {
+        let (before, after) = (&before, &after);
+        async move {
+            let before_output = fetch_output(pool, before.id, case.id).await?;
+            let after_output = fetch_output(pool, after.id, case.id).await?;
+            let verdict = llm
+                .judge_behavior(
+                    &case.input,
+                    &case.expected_behavior,
+                    &before_output,
+                    &after_output,
+                )
+                .await?;
 
-        sqlx::query!(
-            "DELETE FROM behavior_diffs
-             WHERE eval_case_id = $1 AND prompt_version_before_id = $2
-               AND prompt_version_after_id = $3",
-            case.id,
-            before.id,
-            after.id
-        )
-        .execute(pool)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO behavior_diffs
-                 (eval_case_id, prompt_version_before_id, prompt_version_after_id,
-                  judge_behavior_changed, judge_justification)
-             VALUES ($1, $2, $3, $4, $5)",
-            case.id,
-            before.id,
-            after.id,
-            verdict.behavior_changed,
-            verdict.justification
-        )
-        .execute(pool)
-        .await?;
-    }
+            sqlx::query!(
+                "DELETE FROM behavior_diffs
+                 WHERE eval_case_id = $1 AND prompt_version_before_id = $2
+                   AND prompt_version_after_id = $3",
+                case.id,
+                before.id,
+                after.id
+            )
+            .execute(pool)
+            .await?;
+            sqlx::query!(
+                "INSERT INTO behavior_diffs
+                     (eval_case_id, prompt_version_before_id, prompt_version_after_id,
+                      judge_behavior_changed, judge_justification)
+                 VALUES ($1, $2, $3, $4, $5)",
+                case.id,
+                before.id,
+                after.id,
+                verdict.behavior_changed,
+                verdict.justification
+            )
+            .execute(pool)
+            .await?;
+            Ok::<(), CoreError>(())
+        }
+    }))
+    .buffer_unordered(concurrency.max(1))
+    .try_collect::<Vec<_>>()
+    .await?;
     Ok(())
 }
 

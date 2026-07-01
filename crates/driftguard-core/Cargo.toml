@@ -17,6 +17,8 @@ similar = { workspace = true }
 reqwest = { workspace = true }
 # Fixtures file parsing (Phase 4).
 toml = { workspace = true }
+# Bounded-concurrency combinators for the LLM call fan-out (Phase 4/5 speedup).
+futures = { workspace = true }
 # Spawning the Go LLM sidecar as a subprocess (Phase 4). `process` for
 # Command, `io-util` for writing the request to its stdin.
 tokio = { workspace = true, features = ["process", "io-util"] }

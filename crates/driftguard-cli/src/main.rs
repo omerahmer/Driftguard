@@ -12,7 +12,7 @@ use driftguard_core::embed::VoyageEmbedder;
 use driftguard_core::llm::GoLlm;
 use driftguard_core::prompts::{self, CreateVersionOutcome};
 use driftguard_core::segment::{DiffOpType, PromptDiff, compute_diff};
-use driftguard_core::{evals, fixtures, scoring, selection, validation};
+use driftguard_core::{ci, evals, fixtures, scoring, selection, validation};
 
 /// `#[derive(Parser)]` generates the whole argument parser for this struct:
 /// flag/positional parsing, `--help`/`--version`, error messages, and exit
@@ -66,6 +66,27 @@ enum Command {
     JudgeValidate(JudgeValidateArgs),
     /// Report precision/recall/% reduction across a similarity-threshold sweep.
     Score(ScoreArgs),
+    /// CI gate: select + run + judge the eval cases a fixtures-file change affects.
+    Ci(CiArgs),
+}
+
+#[derive(Args)]
+struct CiArgs {
+    /// Base (pre-change) fixtures file — the workflow extracts this via git.
+    #[arg(long = "base")]
+    base: String,
+    /// Head (PR) fixtures file.
+    #[arg(long = "head")]
+    head: String,
+    /// Selection threshold in [0,1].
+    #[arg(long, default_value_t = 0.5)]
+    threshold: f64,
+    /// Post results but never fail the process on eval failures (default: fail).
+    #[arg(long = "warn-only")]
+    warn_only: bool,
+    /// Number of API calls in flight at once.
+    #[arg(long, default_value_t = 6)]
+    concurrency: usize,
 }
 
 #[derive(Subcommand)]
@@ -89,6 +110,9 @@ struct RunEvalsArgs {
     prompt: String,
     #[arg(long, default_value = "latest")]
     version: String,
+    /// Number of API calls in flight at once.
+    #[arg(long, default_value_t = 6)]
+    concurrency: usize,
 }
 
 #[derive(Args)]
@@ -98,6 +122,9 @@ struct ValidateArgs {
     /// Selection threshold used while labeling (the sweep in `score` is separate).
     #[arg(long, default_value_t = 0.5)]
     threshold: f64,
+    /// Number of API calls in flight at once.
+    #[arg(long, default_value_t = 6)]
+    concurrency: usize,
 }
 
 #[derive(Args)]
@@ -233,6 +260,7 @@ async fn run(cli: Cli) -> Result<()> {
         Command::Validate(args) => run_validate(&pool, args, cli.json).await,
         Command::JudgeValidate(args) => run_judge_validate(&pool, args, cli.json).await,
         Command::Score(args) => run_score(&pool, args, cli.json).await,
+        Command::Ci(args) => run_ci_cmd(&pool, args, cli.json).await,
     }
 }
 
@@ -273,7 +301,8 @@ async fn run_fixtures(pool: &Pool, cmd: FixturesCmd, json: bool) -> Result<()> {
 
 async fn run_run_evals(pool: &Pool, args: RunEvalsArgs, json: bool) -> Result<()> {
     let llm = GoLlm::from_env()?;
-    let count = validation::run_evals(pool, &llm, &args.prompt, &args.version).await?;
+    let count =
+        validation::run_evals(pool, &llm, &args.prompt, &args.version, args.concurrency).await?;
     if json {
         print_json(&serde_json::json!({ "eval_runs": count }))?;
     } else {
@@ -300,8 +329,15 @@ async fn run_validate(pool: &Pool, args: ValidateArgs, json: bool) -> Result<()>
     if !json {
         eprintln!("Running validation (this makes many API calls, sequentially)…");
     }
-    let summary =
-        validation::validate_fixtures(pool, &llm, &embedder, &parsed, args.threshold).await?;
+    let summary = validation::validate_fixtures(
+        pool,
+        &llm,
+        &embedder,
+        &parsed,
+        args.threshold,
+        args.concurrency,
+    )
+    .await?;
 
     if json {
         print_json(&summary)?;
@@ -409,6 +445,37 @@ async fn run_score(pool: &Pool, args: ScoreArgs, json: bool) -> Result<()> {
     println!(
         "\nGround truth = judge 'behavior changed' (primary); 'pass-flip' shown for comparison."
     );
+    Ok(())
+}
+
+async fn run_ci_cmd(pool: &Pool, args: CiArgs, json: bool) -> Result<()> {
+    if !(0.0..=1.0).contains(&args.threshold) {
+        anyhow::bail!("--threshold must be in [0, 1] (got {})", args.threshold);
+    }
+    let base_text = std::fs::read_to_string(&args.base)
+        .with_context(|| format!("reading base fixtures \"{}\"", args.base))?;
+    let head_text = std::fs::read_to_string(&args.head)
+        .with_context(|| format!("reading head fixtures \"{}\"", args.head))?;
+    let base = fixtures::parse_fixtures(&base_text)?;
+    let head = fixtures::parse_fixtures(&head_text)?;
+
+    let llm = GoLlm::from_env()?;
+    let embedder = VoyageEmbedder::from_env()?;
+    let report =
+        ci::run_ci(pool, &llm, &embedder, &base, &head, args.threshold, args.concurrency).await?;
+
+    // Emit the report (JSON for tooling, Markdown for the PR comment).
+    if json {
+        print_json(&report)?;
+    } else {
+        println!("{}", ci::render_comment(&report));
+    }
+
+    // The exit code is the gate: non-zero when a selected eval failed, unless
+    // --warn-only. The comment is emitted either way (above).
+    if !args.warn_only && report.failed > 0 {
+        std::process::exit(1);
+    }
     Ok(())
 }
 
