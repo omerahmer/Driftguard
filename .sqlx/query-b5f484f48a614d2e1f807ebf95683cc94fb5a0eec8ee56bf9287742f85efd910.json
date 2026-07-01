@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval_cases (prompt_id, input, expected_behavior)\n           VALUES ($1, $2, $3)\n           RETURNING id, prompt_id, input, expected_behavior, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "prompt_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "input",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "expected_behavior",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b5f484f48a614d2e1f807ebf95683cc94fb5a0eec8ee56bf9287742f85efd910"
+}

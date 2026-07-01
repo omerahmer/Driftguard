@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM eval_runs WHERE prompt_version_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d2b5a6299f9b34f4075eac44c7b415e0b55f8ef7e68c6be2163be0231f02dea2"
+}

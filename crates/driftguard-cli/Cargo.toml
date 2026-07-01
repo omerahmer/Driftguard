@@ -10,8 +10,11 @@ license.workspace = true
 name = "driftguard"
 path = "src/main.rs"
 
-# Phase 1 is a placeholder binary, so it has no dependencies yet. Phase 2 adds
-# clap (subcommand tree + global --json) and a path dependency on
-# driftguard-core, at which point this becomes the thin "parse args, call core,
-# format output, set exit code" layer.
 [dependencies]
+driftguard-core = { path = "../driftguard-core" }
+clap = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+dotenvy = { workspace = true }

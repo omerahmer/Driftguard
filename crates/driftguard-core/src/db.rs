@@ -3,6 +3,11 @@
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
+// Re-exported so delivery layers (CLI, future axum API) can name the pool type
+// without taking a direct dependency on sqlx. The persistence library stays an
+// implementation detail of core.
+pub use sqlx::PgPool as Pool;
+
 /// Open a connection pool to Postgres.
 ///
 /// Returns `sqlx::Error` directly rather than a bespoke error type. At this
