@@ -6,6 +6,7 @@
 //! prompt-versioning services ([`prompts`]); embedding, the judge pipeline, and
 //! scoring arrive in later phases.
 
+pub mod ci;
 pub mod db;
 pub mod embed;
 pub mod error;

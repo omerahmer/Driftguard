@@ -21,8 +21,10 @@ pub use sqlx::PgPool as Pool;
 /// `clone`) instead of borrowing one, so callers — a short-lived CLI command or
 /// a long-lived axum handler — each own a handle and decide their own lifetime.
 pub async fn connect(database_url: &str) -> Result<PgPool, sqlx::Error> {
+    // 12 connections: enough headroom for the concurrent LLM fan-out (default
+    // concurrency 6) where each in-flight case also does DB reads/writes.
     PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(12)
         .connect(database_url)
         .await
 }

@@ -63,3 +63,7 @@ similar = "2"
 # TOML parsing for the Phase 4 fixtures file (multi-line prompt bodies are far
 # more readable in TOML than JSON).
 toml = "0.8"
+
+# Concurrency combinators (buffer_unordered) for running many API calls in
+# flight at once against the persistent LLM sidecar.
+futures = "0.3"

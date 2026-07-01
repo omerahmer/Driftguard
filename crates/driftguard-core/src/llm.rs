@@ -12,12 +12,16 @@
 //! uses Opus 4.8 with adaptive thinking + structured output — all configured in
 //! the Go program (`tools/driftguard-llm/main.go`), so model IDs live in one place.
 
+use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{ChildStdin, Command};
+use tokio::sync::{Mutex as AsyncMutex, oneshot};
 
 use crate::error::CoreError;
 
@@ -61,14 +65,27 @@ pub trait Llm {
     ) -> Result<BehaviorVerdict, CoreError>;
 }
 
+type Pending = std::sync::Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
+
 /// Talks to Anthropic via the `driftguard-llm` Go sidecar (official SDK).
+///
+/// The sidecar is a LONG-LIVED process started once; we multiplex requests over
+/// its stdio. Each request carries an `id`; a background reader task correlates
+/// each id-tagged response back to the caller's oneshot channel. This lets the
+/// pipeline fire many requests concurrently (the sidecar handles them in
+/// goroutines, reusing one HTTP/TLS client) instead of paying process-spawn +
+/// connection setup per call.
+///
+/// `GoLlm` is `Sync`, so `&self` can be shared across concurrent tasks.
 pub struct GoLlm {
-    binary: String,
+    stdin: AsyncMutex<ChildStdin>,
+    pending: Pending,
+    next_id: AtomicU64,
 }
 
 impl GoLlm {
-    /// Resolve the sidecar binary from `DRIFTGUARD_LLM_BIN` (default
-    /// `driftguard-llm`, i.e. expected on PATH). Also fails fast with a friendly
+    /// Spawn the sidecar and wire up the reader task. Must be called from within
+    /// a tokio runtime (it spawns background tasks). Fails fast with a friendly
     /// message if `ANTHROPIC_API_KEY` is unset (the sidecar inherits our env).
     pub fn from_env() -> Result<Self, CoreError> {
         std::env::var("ANTHROPIC_API_KEY")
@@ -82,64 +99,116 @@ impl GoLlm {
             })?;
         let binary =
             std::env::var("DRIFTGUARD_LLM_BIN").unwrap_or_else(|_| "driftguard-llm".to_string());
-        Ok(Self { binary })
-    }
 
-    /// Spawn the sidecar, write the request JSON to its stdin, and return its
-    /// stdout. The payloads are small, so writing-then-reading can't deadlock.
-    async fn call(&self, request: Value) -> Result<String, CoreError> {
-        let mut child = Command::new(&self.binary)
+        let mut child = Command::new(&binary)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| {
                 CoreError::Config(format!(
-                    "could not spawn LLM sidecar \"{}\" ({e}). Build it \
-                     (`go build -o tools/driftguard-llm/driftguard-llm ./tools/driftguard-llm`) \
-                     and set DRIFTGUARD_LLM_BIN.",
-                    self.binary
+                    "could not spawn LLM sidecar \"{binary}\" ({e}). Build it (`make sidecar`) \
+                     and set DRIFTGUARD_LLM_BIN."
                 ))
             })?;
 
-        let payload = serde_json::to_vec(&request)?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| CoreError::Api("sidecar stdin unavailable".to_string()))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| CoreError::Api("sidecar stdout unavailable".to_string()))?;
+        let stderr = child.stderr.take();
+        // We intentionally drop the `Child` handle: keeping stdin open keeps the
+        // server running; when this `GoLlm` drops, stdin closes → the server sees
+        // EOF and exits gracefully. (Not storing Child keeps GoLlm `Sync`.)
+
+        let pending: Pending = std::sync::Arc::new(Mutex::new(HashMap::new()));
+
+        // Reader task: match id-tagged responses to their pending oneshot.
         {
-            let mut stdin = child
-                .stdin
-                .take()
-                .ok_or_else(|| CoreError::Api("sidecar stdin unavailable".to_string()))?;
-            stdin
-                .write_all(&payload)
-                .await
-                .map_err(|e| CoreError::Api(format!("writing to sidecar: {e}")))?;
-            // stdin dropped here → EOF, so the sidecar stops reading.
+            let pending = pending.clone();
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(stdout).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    let Ok(value) = serde_json::from_str::<Value>(&line) else {
+                        continue;
+                    };
+                    let Some(id) = value.get("id").and_then(Value::as_u64) else {
+                        continue;
+                    };
+                    let sender = pending.lock().unwrap().remove(&id);
+                    if let Some(tx) = sender {
+                        let result = match value.get("error").and_then(Value::as_str) {
+                            Some(err) => Err(err.to_string()),
+                            None => Ok(value.get("result").cloned().unwrap_or(Value::Null)),
+                        };
+                        let _ = tx.send(result);
+                    }
+                }
+                // stdout closed: fail any still-pending requests.
+                for (_, tx) in pending.lock().unwrap().drain() {
+                    let _ = tx.send(Err("sidecar stdout closed".to_string()));
+                }
+            });
         }
 
-        let output = child
-            .wait_with_output()
-            .await
-            .map_err(|e| CoreError::Api(format!("waiting on sidecar: {e}")))?;
-
-        if !output.status.success() {
-            let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            return Err(CoreError::Api(format!("sidecar failed: {detail}")));
+        // Drain stderr so the pipe never blocks; surface lines for debugging.
+        if let Some(stderr) = stderr {
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(stderr).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    eprintln!("[driftguard-llm] {line}");
+                }
+            });
         }
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+
+        Ok(Self {
+            stdin: AsyncMutex::new(stdin),
+            pending,
+            next_id: AtomicU64::new(1),
+        })
+    }
+
+    /// Send one request and await its correlated response.
+    async fn call(&self, mut request: Value) -> Result<Value, CoreError> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        request["id"] = json!(id);
+
+        let (tx, rx) = oneshot::channel();
+        self.pending.lock().unwrap().insert(id, tx);
+
+        let mut line = serde_json::to_vec(&request)?;
+        line.push(b'\n');
+        {
+            let mut stdin = self.stdin.lock().await;
+            if let Err(e) = stdin.write_all(&line).await {
+                self.pending.lock().unwrap().remove(&id);
+                return Err(CoreError::Api(format!("writing to sidecar: {e}")));
+            }
+            let _ = stdin.flush().await;
+        }
+
+        match rx.await {
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(e)) => Err(CoreError::Api(format!("sidecar: {e}"))),
+            Err(_) => Err(CoreError::Api("sidecar dropped the request".to_string())),
+        }
     }
 }
 
 impl Llm for GoLlm {
     async fn generate(&self, system: &str, user: &str) -> Result<String, CoreError> {
-        let out = self
+        let result = self
             .call(json!({ "op": "generate", "system": system, "user": user }))
             .await?;
-        let value: Value = serde_json::from_str(&out)
-            .map_err(|e| CoreError::Api(format!("parsing sidecar output ({e}): {out}")))?;
-        value
+        result
             .get("text")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| CoreError::Api(format!("sidecar generate: no text in {out}")))
+            .ok_or_else(|| CoreError::Api(format!("sidecar generate: no text in {result}")))
     }
 
     async fn judge_pass(
@@ -148,7 +217,7 @@ impl Llm for GoLlm {
         input: &str,
         actual_output: &str,
     ) -> Result<PassVerdict, CoreError> {
-        let out = self
+        let result = self
             .call(json!({
                 "op": "judge_pass",
                 "expected_behavior": expected_behavior,
@@ -156,8 +225,8 @@ impl Llm for GoLlm {
                 "actual_output": actual_output,
             }))
             .await?;
-        serde_json::from_str(&out)
-            .map_err(|e| CoreError::Api(format!("parsing pass verdict ({e}): {out}")))
+        serde_json::from_value(result)
+            .map_err(|e| CoreError::Api(format!("parsing pass verdict: {e}")))
     }
 
     async fn judge_behavior(
@@ -167,7 +236,7 @@ impl Llm for GoLlm {
         before: &str,
         after: &str,
     ) -> Result<BehaviorVerdict, CoreError> {
-        let out = self
+        let result = self
             .call(json!({
                 "op": "judge_behavior",
                 "input": input,
@@ -176,7 +245,7 @@ impl Llm for GoLlm {
                 "after": after,
             }))
             .await?;
-        serde_json::from_str(&out)
-            .map_err(|e| CoreError::Api(format!("parsing behavior verdict ({e}): {out}")))
+        serde_json::from_value(result)
+            .map_err(|e| CoreError::Api(format!("parsing behavior verdict: {e}")))
     }
 }

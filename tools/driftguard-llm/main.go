@@ -1,22 +1,30 @@
-// driftguard-llm is a thin sidecar that performs Driftguard's Anthropic calls
-// using the OFFICIAL anthropic-sdk-go. The Rust core shells out to this binary
-// (one process per call), passing a JSON request on stdin and reading a JSON
-// response on stdout. This keeps the LLM client on the officially-maintained
-// SDK while the rest of Driftguard stays in Rust, coupled only by the JSON
-// contract below.
+// driftguard-llm is a long-lived sidecar that performs Driftguard's Anthropic
+// calls using the OFFICIAL anthropic-sdk-go. It runs as a SERVER: the Rust core
+// starts it once and multiplexes requests over its stdio.
 //
-// Models (Driftguard's decisions): generation uses the model under test
-// (Sonnet 4.6); judging uses Opus 4.8 with adaptive thinking + structured output
-// (output_config.format JSON schema). `anthropic.Model` is a string alias, so we
-// pass the exact IDs directly and don't depend on per-version model constants.
+// Protocol: newline-delimited JSON. Each request carries an `id`; each response
+// echoes that `id`, so Rust can fire many requests concurrently and correlate
+// the (out-of-order) responses. The process handles requests in goroutines and
+// shares one `anthropic.Client`, which reuses its HTTP/TLS connections — far
+// faster than the old one-process-per-call model.
+//
+//	request : {"id": <n>, "op": "generate|judge_pass|judge_behavior", ...}
+//	response: {"id": <n>, "result": {...}}   or   {"id": <n>, "error": "..."}
+//
+// Models (Driftguard's decisions): generation uses Sonnet 4.6; judging uses
+// Opus 4.8 with structured output (output_config.format). Thinking is
+// intentionally OFF on the judge — the schema already forces a clean JSON
+// verdict, so thinking tokens were wasted spend + latency.
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -26,8 +34,8 @@ const (
 	judgeModel     = "claude-opus-4-8"
 )
 
-// request is the JSON contract from the Rust side. `op` selects the operation.
 type request struct {
+	ID               uint64 `json:"id"`
 	Op               string `json:"op"`
 	System           string `json:"system"`
 	User             string `json:"user"`
@@ -38,32 +46,66 @@ type request struct {
 	After            string `json:"after"`
 }
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+type response struct {
+	ID     uint64          `json:"id"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  string          `json:"error,omitempty"`
 }
 
-func run() error {
-	var req request
-	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
-		return fmt.Errorf("decoding request: %w", err)
-	}
+func main() {
 	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		return fmt.Errorf("ANTHROPIC_API_KEY is not set")
+		fmt.Fprintln(os.Stderr, "ANTHROPIC_API_KEY is not set")
+		os.Exit(1)
 	}
 
-	client := anthropic.NewClient() // reads ANTHROPIC_API_KEY from the env
+	client := anthropic.NewClient() // one shared client → reused TLS connections
 	ctx := context.Background()
+
+	// Serialize writes to stdout (concurrent goroutines share it).
+	var writeMu sync.Mutex
+	out := bufio.NewWriter(os.Stdout)
+	write := func(resp response) {
+		b, _ := json.Marshal(resp)
+		writeMu.Lock()
+		out.Write(b)
+		out.WriteByte('\n')
+		out.Flush()
+		writeMu.Unlock()
+	}
+
+	// Large buffer: judge requests carry before/after outputs.
+	reader := bufio.NewReaderSize(os.Stdin, 1<<20)
+	var wg sync.WaitGroup
+	for {
+		line, err := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			wg.Add(1)
+			go func(raw []byte) {
+				defer wg.Done()
+				write(handle(ctx, &client, raw))
+			}(line)
+		}
+		if err != nil {
+			break // EOF (Rust closed stdin) or read error
+		}
+	}
+	wg.Wait()
+}
+
+func handle(ctx context.Context, client *anthropic.Client, raw []byte) response {
+	var req request
+	if err := json.Unmarshal(raw, &req); err != nil {
+		return response{Error: fmt.Sprintf("decoding request: %v", err)}
+	}
 
 	switch req.Op {
 	case "generate":
-		text, err := generate(ctx, &client, req.System, req.User)
+		text, err := generate(ctx, client, req.System, req.User)
 		if err != nil {
-			return err
+			return response{ID: req.ID, Error: err.Error()}
 		}
-		return emit(map[string]any{"text": text})
+		result, _ := json.Marshal(map[string]string{"text": text})
+		return response{ID: req.ID, Result: result}
 
 	case "judge_pass":
 		system := "You are a strict, fair evaluator of AI responses. You are given a test " +
@@ -78,11 +120,7 @@ func run() error {
 			"passed":        map[string]any{"type": "boolean"},
 			"justification": map[string]any{"type": "string"},
 		}, "passed", "justification")
-		text, err := judge(ctx, &client, system, user, schema)
-		if err != nil {
-			return err
-		}
-		return emitRaw(text)
+		return judgeResponse(ctx, client, req.ID, system, user, schema)
 
 	case "judge_behavior":
 		system := "You are evaluating whether a prompt change altered a model's behavior on a " +
@@ -99,18 +137,22 @@ func run() error {
 			"behavior_changed": map[string]any{"type": "boolean"},
 			"justification":    map[string]any{"type": "string"},
 		}, "behavior_changed", "justification")
-		text, err := judge(ctx, &client, system, user, schema)
-		if err != nil {
-			return err
-		}
-		return emitRaw(text)
+		return judgeResponse(ctx, client, req.ID, system, user, schema)
 
 	default:
-		return fmt.Errorf("unknown op %q", req.Op)
+		return response{ID: req.ID, Error: fmt.Sprintf("unknown op %q", req.Op)}
 	}
 }
 
-// generate runs the model under test (Sonnet): system = prompt being tested.
+func judgeResponse(ctx context.Context, client *anthropic.Client, id uint64, system, user string, schema map[string]any) response {
+	text, err := judge(ctx, client, system, user, schema)
+	if err != nil {
+		return response{ID: id, Error: err.Error()}
+	}
+	// `text` is already a JSON object matching the schema; embed it raw.
+	return response{ID: id, Result: json.RawMessage(text)}
+}
+
 func generate(ctx context.Context, client *anthropic.Client, system, user string) (string, error) {
 	msg, err := client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     modelUnderTest,
@@ -124,17 +166,14 @@ func generate(ctx context.Context, client *anthropic.Client, system, user string
 	return textOf(msg), nil
 }
 
-// judge runs Opus 4.8 with adaptive thinking and a forced JSON-schema output.
-// The returned string is the raw verdict JSON (already matching the schema).
+// judge runs Opus 4.8 with a forced JSON-schema output. Thinking is OFF: the
+// schema already constrains the answer, so thinking would only add tokens.
 func judge(ctx context.Context, client *anthropic.Client, system, user string, schema map[string]any) (string, error) {
 	msg, err := client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     judgeModel,
-		MaxTokens: 4096,
+		MaxTokens: 1024,
 		System:    []anthropic.TextBlockParam{{Text: system}},
 		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(user))},
-		Thinking: anthropic.ThinkingConfigParamUnion{
-			OfAdaptive: &anthropic.ThinkingConfigAdaptiveParam{},
-		},
 		OutputConfig: anthropic.OutputConfigParam{
 			Format: anthropic.JSONOutputFormatParam{Schema: schema},
 		},
@@ -166,14 +205,4 @@ func objectSchema(properties map[string]any, required ...string) map[string]any 
 		"required":             required,
 		"additionalProperties": false,
 	}
-}
-
-func emit(v map[string]any) error {
-	return json.NewEncoder(os.Stdout).Encode(v)
-}
-
-// emitRaw writes an already-serialized JSON object straight through.
-func emitRaw(jsonText string) error {
-	_, err := fmt.Fprintln(os.Stdout, jsonText)
-	return err
 }
