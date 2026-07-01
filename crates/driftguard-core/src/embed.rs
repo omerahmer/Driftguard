@@ -86,10 +86,19 @@ impl VoyageEmbedder {
                         .to_string(),
                 )
             })?;
+        // Model is configurable via VOYAGE_MODEL (default voyage-3.5-lite). The
+        // DIMENSION is intentionally NOT env-configurable: it must match the
+        // pgvector column (vector(1024) in migration 0002), so changing it
+        // requires a migration. If you pick a model that doesn't support a 1024
+        // output_dimension, Voyage returns a clear error.
+        let model = std::env::var("VOYAGE_MODEL")
+            .ok()
+            .filter(|m| !m.trim().is_empty())
+            .unwrap_or_else(|| Self::DEFAULT_MODEL.to_string());
         Ok(Self {
             client: reqwest::Client::new(),
             api_key,
-            model: Self::DEFAULT_MODEL.to_string(),
+            model,
             dimension: Self::DEFAULT_DIMENSION,
         })
     }

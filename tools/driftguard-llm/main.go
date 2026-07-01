@@ -29,10 +29,21 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-const (
-	modelUnderTest = "claude-sonnet-4-6"
-	judgeModel     = "claude-opus-4-8"
+// Models are configurable via env (set once at startup — the sidecar is
+// long-lived). The model under test should match your production app; the judge
+// should be at least as capable. `anthropic.Model` is a string, so any valid ID
+// works.
+var (
+	modelUnderTest = envOr("DRIFTGUARD_MODEL_UNDER_TEST", "claude-sonnet-4-6")
+	judgeModel     = envOr("DRIFTGUARD_JUDGE_MODEL", "claude-opus-4-8")
 )
+
+func envOr(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
 
 type request struct {
 	ID               uint64 `json:"id"`
