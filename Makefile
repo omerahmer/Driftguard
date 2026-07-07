@@ -2,7 +2,7 @@
 
 SIDECAR := tools/driftguard-llm/driftguard-llm
 
-.PHONY: sidecar build migrate verify test clean
+.PHONY: sidecar build migrate verify test clean api dashboard
 
 # Build the Go LLM sidecar (uses the official anthropic-sdk-go).
 sidecar:
@@ -24,6 +24,14 @@ verify:
 
 test:
 	cargo test --workspace
+
+# Read API (Phase 6) on :3000.
+api:
+	cargo run -p driftguard-api
+
+# Next.js dashboard (Phase 6) on :3001 — proxies /api to the API above.
+dashboard:
+	cd dashboard && npm run dev
 
 clean:
 	cargo clean

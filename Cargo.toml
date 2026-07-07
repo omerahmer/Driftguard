@@ -7,7 +7,7 @@
 # never imports clap, axum, or anything delivery-specific.
 [workspace]
 resolver = "3"
-members = ["crates/driftguard-core", "crates/driftguard-cli"]
+members = ["crates/driftguard-core", "crates/driftguard-cli", "crates/driftguard-api"]
 
 [workspace.package]
 version = "0.1.0"
@@ -67,3 +67,8 @@ toml = "0.8"
 # Concurrency combinators (buffer_unordered) for running many API calls in
 # flight at once against the persistent LLM sidecar.
 futures = "0.3"
+
+# HTTP framework for the read API (Phase 6) — a thin layer over driftguard-core.
+axum = "0.8"
+# CORS + tracing middleware for the API.
+tower-http = { version = "0.6", features = ["cors", "trace"] }

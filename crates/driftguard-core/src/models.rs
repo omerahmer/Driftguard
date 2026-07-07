@@ -42,3 +42,16 @@ pub struct EvalCase {
     pub expected_behavior: String,
     pub created_at: DateTime<Utc>,
 }
+
+/// A single eval run: the model-under-test's output for one case against one
+/// version, plus the judge's verdict (nullable until judged).
+#[derive(Debug, Clone, Serialize)]
+pub struct EvalRun {
+    pub id: Uuid,
+    pub prompt_version_id: Uuid,
+    pub eval_case_id: Uuid,
+    pub actual_output: String,
+    pub judge_passed: Option<bool>,
+    pub judge_justification: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
