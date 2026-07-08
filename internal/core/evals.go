@@ -57,8 +57,8 @@ func ListEvalRuns(ctx context.Context, pool *pgxpool.Pool, versionID uuid.UUID) 
 	return runs, rows.Err()
 }
 
-// CreateEvalCase adds one eval case to a prompt (used by the fixtures loader
-// in bulk; the CLI also exposes a one-off `eval add`).
+// CreateEvalCase adds one eval case to a prompt by name (used by the fixtures
+// loader in bulk; the CLI also exposes a one-off `eval add`).
 func CreateEvalCase(ctx context.Context, pool *pgxpool.Pool, promptName, input, expectedBehavior string) (*EvalCase, error) {
 	prompt, err := GetPromptByName(ctx, pool, promptName)
 	if err != nil {
@@ -67,12 +67,19 @@ func CreateEvalCase(ctx context.Context, pool *pgxpool.Pool, promptName, input, 
 	if prompt == nil {
 		return nil, PromptNotFoundError{Name: promptName}
 	}
+	return CreateEvalCaseForPrompt(ctx, pool, prompt.ID, input, expectedBehavior)
+}
+
+// CreateEvalCaseForPrompt adds one eval case to a prompt by id. The by-id form
+// is what the dashboard write path uses (it already has the prompt id from the
+// registry); CreateEvalCase is the by-name convenience over it.
+func CreateEvalCaseForPrompt(ctx context.Context, pool *pgxpool.Pool, promptID uuid.UUID, input, expectedBehavior string) (*EvalCase, error) {
 	var c EvalCase
-	err = pool.QueryRow(ctx,
+	err := pool.QueryRow(ctx,
 		`INSERT INTO eval_cases (prompt_id, input, expected_behavior)
 		 VALUES ($1, $2, $3)
 		 RETURNING id, prompt_id, input, expected_behavior, created_at`,
-		prompt.ID, input, expectedBehavior).
+		promptID, input, expectedBehavior).
 		Scan(&c.ID, &c.PromptID, &c.Input, &c.ExpectedBehavior, &c.CreatedAt)
 	if err != nil {
 		return nil, err

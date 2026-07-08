@@ -30,6 +30,14 @@ export interface PromptDiff {
   stats: { added: number; removed: number; unchanged: number };
 }
 
+export interface EvalCase {
+  id: string;
+  prompt_id: string;
+  input: string;
+  expected_behavior: string;
+  created_at: string;
+}
+
 export interface EvalRun {
   id: string;
   prompt_version_id: string;
@@ -68,9 +76,26 @@ async function get<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    // The API returns { error } on failure — surface it if present.
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error ?? `${res.status} ${res.statusText} for ${path}`);
+  }
+  return res.json();
+}
+
 export const api = {
   prompts: () => get<Prompt[]>("/prompts"),
   versions: (promptId: string) => get<PromptVersion[]>(`/prompts/${promptId}/versions`),
+  evalCases: (promptId: string) => get<EvalCase[]>(`/prompts/${promptId}/eval-cases`),
+  addEvalCase: (promptId: string, input: string, expected_behavior: string) =>
+    post<EvalCase>(`/prompts/${promptId}/eval-cases`, { input, expected_behavior }),
   runs: (versionId: string) => get<EvalRun[]>(`/versions/${versionId}/runs`),
   score: (promptName: string) =>
     get<ScoreReport>(`/score?prompt=${encodeURIComponent(promptName)}`),

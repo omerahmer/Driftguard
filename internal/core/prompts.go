@@ -96,6 +96,20 @@ func ListVersions(ctx context.Context, pool *pgxpool.Pool, promptID uuid.UUID) (
 	return versions, rows.Err()
 }
 
+// GetPromptByID returns the prompt or nil if no prompt has that id.
+func GetPromptByID(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID) (*Prompt, error) {
+	row := pool.QueryRow(ctx,
+		`SELECT `+promptCols+` FROM prompts WHERE id = $1`, id)
+	p, err := scanPrompt(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
 // GetVersionByID returns the version or nil if the id doesn't exist.
 func GetVersionByID(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID) (*PromptVersion, error) {
 	row := pool.QueryRow(ctx,
