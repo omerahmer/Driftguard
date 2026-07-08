@@ -7,59 +7,52 @@ precision/recall result** for that selection, not just a working CLI.
 
 ## Stack
 
-- Language: Rust (stable, edition 2024)
-- CLI: `clap` v4 (derive)
-- Async: `tokio`
-- DB: PostgreSQL + pgvector via `sqlx` (async, compile-time-checked queries)
-- Embeddings: Voyage AI via `reqwest` (Phase 3)
-- LLM (generate + judge): a **long-lived Go sidecar** (`tools/driftguard-llm`)
-  using the official `anthropic-sdk-go` (no official Rust SDK). Rust starts it
-  once and **multiplexes id-tagged requests** over its stdio, running many in
-  flight at once (`--concurrency`, default 6) against one reused HTTP client.
-  The judge (Opus 4.8) uses schema-forced JSON with thinking off; the SDK
-  handles 429/5xx retries. All behind the `Llm` trait. Models are configurable
-  via env (`DRIFTGUARD_MODEL_UNDER_TEST`, `DRIFTGUARD_JUDGE_MODEL`,
+- Language: Go 1.25+ (a single binary; originally Rust — see "History" below)
+- CLI: `cobra`
+- DB: PostgreSQL + pgvector via `pgx`
+- Embeddings: Voyage AI (`net/http`, behind an `Embedder` interface)
+- LLM (generate + judge): the official `anthropic-sdk-go`, **in-process** —
+  bounded-concurrent goroutines (`--concurrency`, default 6) over one shared
+  client. The judge (Opus 4.8) uses schema-forced JSON with thinking off; the
+  SDK handles 429/5xx retries. All behind the `Llm` interface. Models are
+  configurable via env (`DRIFTGUARD_MODEL_UNDER_TEST`, `DRIFTGUARD_JUDGE_MODEL`,
   `VOYAGE_MODEL`) — no rebuild needed; point the model under test at whatever
   your production app runs.
-- Errors: `anyhow` (app-level) + `thiserror` (library-level)
 
-## Workspace layout
+## Layout
 
 ```
-crates/driftguard-core   all business logic (diff, embed, select, judge, score)
-crates/driftguard-cli    thin clap binary `driftguard` that calls into core
-tools/driftguard-llm     Go sidecar for Anthropic calls (official anthropic-sdk-go)
-migrations/              sqlx migrations
-fixtures/                Phase 4 fixtures (prompts + eval cases + edits)
-crates/driftguard-api    axum JSON API — added in Phase 6 only
+cmd/driftguard     the CLI binary (cobra subcommands + the `api` server command)
+internal/core      all business logic (diff, embed, select, judge, score)
+internal/api       read-only JSON API for the dashboard (stdlib net/http)
+migrations/        SQL migrations
+fixtures/          Phase 4 fixtures (prompts + eval cases + edits)
+dashboard/         Next.js dashboard
 ```
 
-The core/cli split is deliberate: core holds no delivery concerns, so the CLI
-now and the axum API later both call the same functions.
+The core/cmd split is deliberate: core holds no delivery concerns, so the CLI
+and the HTTP API call the same functions.
 
 ## Local setup
 
-Requirements: Rust 1.91+, Go 1.25+ (for the LLM sidecar), Docker, `sqlx-cli`
-(`cargo install sqlx-cli@^0.8 --no-default-features --features native-tls,postgres`).
+Requirements: Go 1.25+, Docker, `sqlx-cli` for migrations
+(`cargo install sqlx-cli@^0.8 --no-default-features --features native-tls,postgres`,
+or apply `migrations/*.sql` with `psql` as CI does).
 
 ```bash
 cp .env.example .env                 # DATABASE_URL / VOYAGE_API_KEY / ANTHROPIC_API_KEY
 docker compose up -d                 # Postgres + pgvector on host port 5433
-sqlx migrate run                     # apply migrations/ to the DB
-make build                           # build the Rust workspace + the Go sidecar
-make verify                          # offline pipeline checks (no API keys needed)
-make test                            # unit tests
+make migrate                         # apply migrations/ to the DB
+make build                           # build the ./driftguard binary
+make test                            # unit + DB-backed parity tests
 ```
 
-`make sidecar` alone builds just the Go binary; `.env`'s `DRIFTGUARD_LLM_BIN`
-points the CLI at it. The Anthropic-touching commands (`run-evals`, `validate`)
-shell out to that sidecar.
-
-**Compile-time-checked queries.** sqlx validates every query against the schema
-at build time. The committed `.sqlx/` cache lets the workspace build offline
-(`SQLX_OFFLINE=true cargo build`) without a live DB — e.g. in CI. After changing
-any SQL, regenerate it with `cargo sqlx prepare --workspace` (needs the DB up)
-and commit the result.
+**Diff parity is pinned by golden tests.** The structural diff is a
+line-by-line port of the Rust implementation (`similar`'s Myers + Compact +
+Replace); `internal/core/testdata/segment_goldens.json` pins its exact output,
+and a DB-backed test recomputes every stored `diff_from_parent` and asserts
+byte equality. If you touch `segment.go`/`myers.go`, those tests are the
+contract.
 
 ## CLI usage (Phase 2)
 
@@ -83,7 +76,7 @@ driftguard prompt list
 driftguard prompt history --prompt support-agent
 ```
 
-**Diff granularity:** structure-aware (`crates/driftguard-core/src/segment.rs`).
+**Diff granularity:** structure-aware (`internal/core/segment.go`).
 Prose splits into sentences; headings and list items stay per-line; fenced code
 stays atomic. Each diff's added-side `changed_spans` is what Phase 3 embeds.
 
@@ -107,9 +100,7 @@ driftguard select-evals --prompt support-agent --json
 
 - **Embeddings:** Voyage AI `voyage-3.5-lite` (1024-dim) — Anthropic has no
   embeddings API, so `VOYAGE_API_KEY` is required for `select-evals`. The
-  provider sits behind an `Embedder` trait (`crates/driftguard-core/src/embed.rs`),
-  so the selection path is verifiable offline:
-  `cargo run -p driftguard-core --example verify_selection` (no key needed).
+  provider sits behind an `Embedder` interface (`internal/core/embed.go`).
 - **Default threshold:** 0.5 (favors recall). Phase 4 sweeps the full range.
 
 ## Validation pipeline (Phase 4 — the core result)
@@ -135,13 +126,11 @@ driftguard score --json   # for the Phase 6 dashboard chart
 
 - **Model under test:** `claude-sonnet-4-6` · **Judge:** `claude-opus-4-8`
   (`output_config.format` JSON-schema structured output). Both behind an `Llm`
-  trait (`crates/driftguard-core/src/llm.rs`).
+  interface (`internal/core/llm.go`).
 - **Ground truth** (`was_actually_affected`): the judge says behavior changed
   substantively (any user-meaningful difference). `score` *also* reports a
   pass/fail-flip view for comparison.
 - **Threshold sweep:** 0.30–0.90 step 0.05.
-- Verify the whole pipeline offline (no keys):
-  `cargo run -p driftguard-core --example verify_validation`.
 
 `run-evals` and `score` also exist as standalone building blocks.
 
@@ -177,7 +166,7 @@ make api          # axum read API on :3000  (GET /prompts, /prompts/:id/versions
 make dashboard    # Next.js dashboard on :3001 (proxies /api -> the API)
 ```
 
-- **Stack:** Next.js + Tailwind + recharts → axum (`crates/driftguard-api`,
+- **Stack:** Next.js + Tailwind + recharts → Go read API (`internal/api`,
   reuses core in-process) → Postgres/pgvector.
 - The diff viewer renders straight from each version's stored `ops`
   (`diff_from_parent`); the precision/recall chart is **derived state** —
@@ -192,7 +181,10 @@ make dashboard    # Next.js dashboard on :3001 (proxies /api -> the API)
 3. **Embedding + similarity-based eval selection** ✅
 4. **Ground-truth validation pipeline (precision/recall)** ✅
 5. **GitHub Action integration** ✅
-6. **Read API + React dashboard** ✅ (current)
+6. **Read API + React dashboard** ✅
+7. **Rust → Go rewrite** ✅ (current) — single Go binary; the LLM sidecar
+   folded in-process; diff-engine parity pinned by golden tests. The original
+   Rust workspace lives in git history (up to the `go-rewrite` branch point).
 
 Roadmapped next: live state sync (Postgres `LISTEN/NOTIFY` → SSE), a
 read+scoped-write path with async eval jobs and an in-UI editor/PR workflow,

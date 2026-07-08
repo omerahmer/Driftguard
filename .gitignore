@@ -1,8 +1,6 @@
-/target
 .env
-**/*.rs.bk
-# Compiled Go sidecar binary (build with `make sidecar`)
-/tools/driftguard-llm/driftguard-llm
+# Compiled CLI binary (build with `make build`)
+/driftguard
 # Next.js dashboard
 /dashboard/node_modules
 /dashboard/.next

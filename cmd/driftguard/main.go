@@ -158,7 +158,7 @@ func promptCmd() *cobra.Command {
 	}
 	version.Flags().StringVar(&contentFile, "file", "", "read content from a file instead of stdin")
 
-	cmd.AddCommand(list, create, version)
+	cmd.AddCommand(list, create, version, promptDiffCmd(), promptHistoryCmd())
 	return cmd
 }
 
@@ -590,5 +590,99 @@ func ciCmd() *cobra.Command {
 	cmd.Flags().IntVar(&concurrency, "concurrency", 6, "in-flight LLM calls")
 	cmd.MarkFlagRequired("base")
 	cmd.MarkFlagRequired("head")
+	return cmd
+}
+
+func promptDiffCmd() *cobra.Command {
+	var promptName, from, to string
+	cmd := &cobra.Command{
+		Use:   "diff",
+		Short: "Diff two versions of a prompt (structure-aware)",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+			pool, err := connect(ctx)
+			if err != nil {
+				return err
+			}
+			defer pool.Close()
+			p, err := core.GetPromptByName(ctx, pool, promptName)
+			if err != nil {
+				return err
+			}
+			if p == nil {
+				return core.PromptNotFoundError{Name: promptName}
+			}
+			vFrom, err := core.ResolveVersionRef(ctx, pool, p, from)
+			if err != nil {
+				return err
+			}
+			vTo, err := core.ResolveVersionRef(ctx, pool, p, to)
+			if err != nil {
+				return err
+			}
+			diff := core.ComputeDiff(vFrom.Content, vTo.Content)
+			if jsonOut {
+				return emit(diff)
+			}
+			for _, op := range diff.Ops {
+				switch op.Type {
+				case core.OpAdded:
+					fmt.Printf("+ %s\n", op.Text)
+				case core.OpRemoved:
+					fmt.Printf("- %s\n", op.Text)
+				default:
+					fmt.Printf("  %s\n", op.Text)
+				}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&promptName, "prompt", "", "prompt name")
+	cmd.Flags().StringVar(&from, "from", "", "source version ref")
+	cmd.Flags().StringVar(&to, "to", "", "target version ref")
+	cmd.MarkFlagRequired("prompt")
+	cmd.MarkFlagRequired("from")
+	cmd.MarkFlagRequired("to")
+	return cmd
+}
+
+func promptHistoryCmd() *cobra.Command {
+	var promptName string
+	cmd := &cobra.Command{
+		Use:   "history",
+		Short: "List a prompt's versions, oldest first",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+			pool, err := connect(ctx)
+			if err != nil {
+				return err
+			}
+			defer pool.Close()
+			p, err := core.GetPromptByName(ctx, pool, promptName)
+			if err != nil {
+				return err
+			}
+			if p == nil {
+				return core.PromptNotFoundError{Name: promptName}
+			}
+			versions, err := core.ListVersions(ctx, pool, p.ID)
+			if err != nil {
+				return err
+			}
+			if jsonOut {
+				return emit(versions)
+			}
+			for i, v := range versions {
+				current := " "
+				if p.CurrentVersionID != nil && v.ID == *p.CurrentVersionID {
+					current = "*"
+				}
+				fmt.Printf("%s v%-3d %s  %s\n", current, i+1, v.ID.String()[:8], v.CreatedAt.Format("2006-01-02 15:04"))
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&promptName, "prompt", "", "prompt name")
+	cmd.MarkFlagRequired("prompt")
 	return cmd
 }
