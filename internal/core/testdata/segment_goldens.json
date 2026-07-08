@@ -1,0 +1,737 @@
+{
+  "diffs": [
+    {
+      "after": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "before": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"equal\",\"text\":\"- Greet the customer by name if they provide one.\"},{\"type\":\"equal\",\"text\":\"- Cite the relevant policy ID (format: POL-###) when explaining a decision.\"},{\"type\":\"equal\",\"text\":\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"},{\"type\":\"equal\",\"text\":\"- Keep responses under 4 sentences.\"},{\"type\":\"equal\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"}],\"changed_spans\":[],\"removed_spans\":[],\"stats\":{\"added\":0,\"removed\":0,\"unchanged\":6}}"
+    },
+    {
+      "after": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses brief — ideally 2-3 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "before": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"equal\",\"text\":\"- Greet the customer by name if they provide one.\"},{\"type\":\"equal\",\"text\":\"- Cite the relevant policy ID (format: POL-###) when explaining a decision.\"},{\"type\":\"equal\",\"text\":\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"},{\"type\":\"removed\",\"text\":\"- Keep responses under 4 sentences.\"},{\"type\":\"added\",\"text\":\"- Keep responses brief — ideally 2-3 sentences.\"},{\"type\":\"equal\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"}],\"changed_spans\":[\"- Keep responses brief — ideally 2-3 sentences.\"],\"removed_spans\":[\"- Keep responses under 4 sentences.\"],\"stats\":{\"added\":1,\"removed\":1,\"unchanged\":5}}"
+    },
+    {
+      "after": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n- Always end by asking if there's anything else you can help with.\n",
+      "before": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"equal\",\"text\":\"- Greet the customer by name if they provide one.\"},{\"type\":\"equal\",\"text\":\"- Cite the relevant policy ID (format: POL-###) when explaining a decision.\"},{\"type\":\"equal\",\"text\":\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"},{\"type\":\"equal\",\"text\":\"- Keep responses under 4 sentences.\"},{\"type\":\"equal\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"},{\"type\":\"added\",\"text\":\"- Always end by asking if there's anything else you can help with.\"}],\"changed_spans\":[\"- Always end by asking if there's anything else you can help with.\"],\"removed_spans\":[],\"stats\":{\"added\":1,\"removed\":0,\"unchanged\":6}}"
+    },
+    {
+      "after": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "before": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"equal\",\"text\":\"- Greet the customer by name if they provide one.\"},{\"type\":\"equal\",\"text\":\"- Cite the relevant policy ID (format: POL-###) when explaining a decision.\"},{\"type\":\"removed\",\"text\":\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"},{\"type\":\"equal\",\"text\":\"- Keep responses under 4 sentences.\"},{\"type\":\"equal\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"}],\"changed_spans\":[],\"removed_spans\":[\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"],\"stats\":{\"added\":0,\"removed\":1,\"unchanged\":5}}"
+    },
+    {
+      "after": "You are a warm, empathetic customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer warmly and acknowledge their feelings before addressing the issue.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "before": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"removed\",\"text\":\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"removed\",\"text\":\"- Greet the customer by name if they provide one.\"},{\"type\":\"added\",\"text\":\"You are a warm, empathetic customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"added\",\"text\":\"- Greet the customer warmly and acknowledge their feelings before addressing the issue.\"},{\"type\":\"equal\",\"text\":\"- Cite the relevant policy ID (format: POL-###) when explaining a decision.\"},{\"type\":\"equal\",\"text\":\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"},{\"type\":\"equal\",\"text\":\"- Keep responses under 4 sentences.\"},{\"type\":\"equal\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"}],\"changed_spans\":[\"You are a warm, empathetic customer support agent for Acme Cloud, a SaaS billing platform.\",\"- Greet the customer warmly and acknowledge their feelings before addressing the issue.\"],\"removed_spans\":[\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\",\"- Greet the customer by name if they provide one.\"],\"stats\":{\"added\":2,\"removed\":2,\"unchanged\":4}}"
+    },
+    {
+      "after": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- If you don't know an answer, say so and offer to open a support ticket.\n- Keep responses under 4 sentences.\n- Greet the customer by name if they provide one.\n",
+      "before": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a customer support agent for Acme Cloud, a SaaS billing platform.\"},{\"type\":\"removed\",\"text\":\"- Greet the customer by name if they provide one.\"},{\"type\":\"equal\",\"text\":\"- Cite the relevant policy ID (format: POL-###) when explaining a decision.\"},{\"type\":\"equal\",\"text\":\"- Never promise a refund; refunds require manager approval — offer to escalate instead.\"},{\"type\":\"added\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"},{\"type\":\"equal\",\"text\":\"- Keep responses under 4 sentences.\"},{\"type\":\"removed\",\"text\":\"- If you don't know an answer, say so and offer to open a support ticket.\"},{\"type\":\"added\",\"text\":\"- Greet the customer by name if they provide one.\"}],\"changed_spans\":[\"- If you don't know an answer, say so and offer to open a support ticket.\",\"- Greet the customer by name if they provide one.\"],\"removed_spans\":[\"- Greet the customer by name if they provide one.\",\"- If you don't know an answer, say so and offer to open a support ticket.\"],\"stats\":{\"added\":2,\"removed\":2,\"unchanged\":4}}"
+    },
+    {
+      "after": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "before": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a senior code reviewer for a Python backend team.\"},{\"type\":\"equal\",\"text\":\"Review the submitted diff.\"},{\"type\":\"equal\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"equal\",\"text\":\"- For each finding, cite the file and line and give a concrete fix.\"},{\"type\":\"equal\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"},{\"type\":\"equal\",\"text\":\"- If the diff looks correct, say so explicitly rather than inventing issues.\"},{\"type\":\"equal\",\"text\":\"- Limit the review to the 5 most important findings.\"}],\"changed_spans\":[],\"removed_spans\":[],\"stats\":{\"added\":0,\"removed\":0,\"unchanged\":7}}"
+    },
+    {
+      "after": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; deprioritize style nits but mention them briefly.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "before": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a senior code reviewer for a Python backend team.\"},{\"type\":\"equal\",\"text\":\"Review the submitted diff.\"},{\"type\":\"removed\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"added\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; deprioritize style nits but mention them briefly.\"},{\"type\":\"equal\",\"text\":\"- For each finding, cite the file and line and give a concrete fix.\"},{\"type\":\"equal\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"},{\"type\":\"equal\",\"text\":\"- If the diff looks correct, say so explicitly rather than inventing issues.\"},{\"type\":\"equal\",\"text\":\"- Limit the review to the 5 most important findings.\"}],\"changed_spans\":[\"- Flag correctness bugs, security issues, and performance problems; deprioritize style nits but mention them briefly.\"],\"removed_spans\":[\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"],\"stats\":{\"added\":1,\"removed\":1,\"unchanged\":6}}"
+    },
+    {
+      "after": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Start your review with a one-line verdict: APPROVE or REQUEST CHANGES.\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "before": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a senior code reviewer for a Python backend team.\"},{\"type\":\"equal\",\"text\":\"Review the submitted diff.\"},{\"type\":\"added\",\"text\":\"- Start your review with a one-line verdict: APPROVE or REQUEST CHANGES.\"},{\"type\":\"equal\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"equal\",\"text\":\"- For each finding, cite the file and line and give a concrete fix.\"},{\"type\":\"equal\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"},{\"type\":\"equal\",\"text\":\"- If the diff looks correct, say so explicitly rather than inventing issues.\"},{\"type\":\"equal\",\"text\":\"- Limit the review to the 5 most important findings.\"}],\"changed_spans\":[\"- Start your review with a one-line verdict: APPROVE or REQUEST CHANGES.\"],\"removed_spans\":[],\"stats\":{\"added\":1,\"removed\":0,\"unchanged\":7}}"
+    },
+    {
+      "after": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n",
+      "before": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a senior code reviewer for a Python backend team.\"},{\"type\":\"equal\",\"text\":\"Review the submitted diff.\"},{\"type\":\"equal\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"equal\",\"text\":\"- For each finding, cite the file and line and give a concrete fix.\"},{\"type\":\"equal\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"},{\"type\":\"equal\",\"text\":\"- If the diff looks correct, say so explicitly rather than inventing issues.\"},{\"type\":\"removed\",\"text\":\"- Limit the review to the 5 most important findings.\"}],\"changed_spans\":[],\"removed_spans\":[\"- Limit the review to the 5 most important findings.\"],\"stats\":{\"added\":0,\"removed\":1,\"unchanged\":6}}"
+    },
+    {
+      "after": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be encouraging and supportive; lead with what's good before raising concerns.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "before": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a senior code reviewer for a Python backend team.\"},{\"type\":\"equal\",\"text\":\"Review the submitted diff.\"},{\"type\":\"equal\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"equal\",\"text\":\"- For each finding, cite the file and line and give a concrete fix.\"},{\"type\":\"removed\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"},{\"type\":\"added\",\"text\":\"- Be encouraging and supportive; lead with what's good before raising concerns.\"},{\"type\":\"equal\",\"text\":\"- If the diff looks correct, say so explicitly rather than inventing issues.\"},{\"type\":\"equal\",\"text\":\"- Limit the review to the 5 most important findings.\"}],\"changed_spans\":[\"- Be encouraging and supportive; lead with what's good before raising concerns.\"],\"removed_spans\":[\"- Be direct but respectful; do not rubber-stamp.\"],\"stats\":{\"added\":1,\"removed\":1,\"unchanged\":6}}"
+    },
+    {
+      "after": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- For each finding, cite the file and line and give a concrete fix.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- Limit the review to the 5 most important findings.\n- Be direct but respectful; do not rubber-stamp.\n",
+      "before": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a senior code reviewer for a Python backend team.\"},{\"type\":\"equal\",\"text\":\"Review the submitted diff.\"},{\"type\":\"removed\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"equal\",\"text\":\"- For each finding, cite the file and line and give a concrete fix.\"},{\"type\":\"removed\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"},{\"type\":\"equal\",\"text\":\"- If the diff looks correct, say so explicitly rather than inventing issues.\"},{\"type\":\"added\",\"text\":\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\"},{\"type\":\"equal\",\"text\":\"- Limit the review to the 5 most important findings.\"},{\"type\":\"added\",\"text\":\"- Be direct but respectful; do not rubber-stamp.\"}],\"changed_spans\":[\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\",\"- Be direct but respectful; do not rubber-stamp.\"],\"removed_spans\":[\"- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\",\"- Be direct but respectful; do not rubber-stamp.\"],\"stats\":{\"added\":2,\"removed\":2,\"unchanged\":5}}"
+    },
+    {
+      "after": "You are a support agent. Always cite the policy ID and link. Be concise.",
+      "before": "You are a support agent. Always cite the policy ID. Be concise.",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"equal\",\"text\":\"You are a support agent.\"},{\"type\":\"removed\",\"text\":\"Always cite the policy ID.\"},{\"type\":\"added\",\"text\":\"Always cite the policy ID and link.\"},{\"type\":\"equal\",\"text\":\"Be concise.\"}],\"changed_spans\":[\"Always cite the policy ID and link.\"],\"removed_spans\":[\"Always cite the policy ID.\"],\"stats\":{\"added\":1,\"removed\":1,\"unchanged\":2}}"
+    },
+    {
+      "after": "Return JSON like:\n```\n{ \"a\": 1. \"b\": 2 }\n```\nThen stop.",
+      "before": "# System\nYou are a support agent. Always be concise.\n\n- Cite the policy ID\n- Never invent refunds",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"removed\",\"text\":\"# System\"},{\"type\":\"removed\",\"text\":\"You are a support agent.\"},{\"type\":\"removed\",\"text\":\"Always be concise.\"},{\"type\":\"removed\",\"text\":\"- Cite the policy ID\"},{\"type\":\"removed\",\"text\":\"- Never invent refunds\"},{\"type\":\"added\",\"text\":\"Return JSON like:\"},{\"type\":\"added\",\"text\":\"```\\n{ \\\"a\\\": 1. \\\"b\\\": 2 }\\n```\"},{\"type\":\"added\",\"text\":\"Then stop.\"}],\"changed_spans\":[\"Return JSON like:\",\"```\\n{ \\\"a\\\": 1. \\\"b\\\": 2 }\\n```\",\"Then stop.\"],\"removed_spans\":[\"# System\",\"You are a support agent.\",\"Always be concise.\",\"- Cite the policy ID\",\"- Never invent refunds\"],\"stats\":{\"added\":3,\"removed\":5,\"unchanged\":0}}"
+    },
+    {
+      "after": "New prompt. Fresh start.",
+      "before": "",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"added\",\"text\":\"New prompt.\"},{\"type\":\"added\",\"text\":\"Fresh start.\"}],\"changed_spans\":[\"New prompt.\",\"Fresh start.\"],\"removed_spans\":[],\"stats\":{\"added\":2,\"removed\":0,\"unchanged\":0}}"
+    },
+    {
+      "after": "",
+      "before": "Old prompt. Goodbye.",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"removed\",\"text\":\"Old prompt.\"},{\"type\":\"removed\",\"text\":\"Goodbye.\"}],\"changed_spans\":[],\"removed_spans\":[\"Old prompt.\",\"Goodbye.\"],\"stats\":{\"added\":0,\"removed\":2,\"unchanged\":0}}"
+    },
+    {
+      "after": "- Rule C\n- Rule A\n- Rule B",
+      "before": "- Rule A\n- Rule B\n- Rule C",
+      "diff_json": "{\"granularity\":\"structure-aware-v1\",\"ops\":[{\"type\":\"added\",\"text\":\"- Rule C\"},{\"type\":\"equal\",\"text\":\"- Rule A\"},{\"type\":\"equal\",\"text\":\"- Rule B\"},{\"type\":\"removed\",\"text\":\"- Rule C\"}],\"changed_spans\":[\"- Rule C\"],\"removed_spans\":[\"- Rule C\"],\"stats\":{\"added\":1,\"removed\":1,\"unchanged\":2}}"
+    }
+  ],
+  "segmentation": [
+    {
+      "input": "You are a support agent. Always cite the policy ID. Be concise.",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a support agent."
+        },
+        {
+          "kind": "sentence",
+          "text": "Always cite the policy ID."
+        },
+        {
+          "kind": "sentence",
+          "text": "Be concise."
+        }
+      ]
+    },
+    {
+      "input": "Use a tool, e.g. search, when needed. Then answer.",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "Use a tool, e.g. search, when needed."
+        },
+        {
+          "kind": "sentence",
+          "text": "Then answer."
+        }
+      ]
+    },
+    {
+      "input": "See fig. 3 for details. Mr. Smith agrees. Answer carefully!",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "See fig. 3 for details."
+        },
+        {
+          "kind": "sentence",
+          "text": "Mr. Smith agrees."
+        },
+        {
+          "kind": "sentence",
+          "text": "Answer carefully!"
+        }
+      ]
+    },
+    {
+      "input": "# System\nYou are a support agent. Always be concise.\n\n- Cite the policy ID\n- Never invent refunds",
+      "segments": [
+        {
+          "kind": "heading",
+          "text": "# System"
+        },
+        {
+          "kind": "sentence",
+          "text": "You are a support agent."
+        },
+        {
+          "kind": "sentence",
+          "text": "Always be concise."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the policy ID"
+        },
+        {
+          "kind": "list-item",
+          "text": "- Never invent refunds"
+        }
+      ]
+    },
+    {
+      "input": "Return JSON like:\n```\n{ \"a\": 1. \"b\": 2 }\n```\nThen stop.",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "Return JSON like:"
+        },
+        {
+          "kind": "code",
+          "text": "```\n{ \"a\": 1. \"b\": 2 }\n```"
+        },
+        {
+          "kind": "sentence",
+          "text": "Then stop."
+        }
+      ]
+    },
+    {
+      "input": "Unicode test: café résumé. Über alles? Naïve — yes.",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "Unicode test: café résumé. Über alles?"
+        },
+        {
+          "kind": "sentence",
+          "text": "Naïve — yes."
+        }
+      ]
+    },
+    {
+      "input": "1. First step\n2) Second step\n\nProse line one\nwrapped onto line two. Done.",
+      "segments": [
+        {
+          "kind": "list-item",
+          "text": "1. First step"
+        },
+        {
+          "kind": "list-item",
+          "text": "2) Second step"
+        },
+        {
+          "kind": "sentence",
+          "text": "Prose line one wrapped onto line two."
+        },
+        {
+          "kind": "sentence",
+          "text": "Done."
+        }
+      ]
+    },
+    {
+      "input": "~~~\nunterminated fence. still code\n",
+      "segments": [
+        {
+          "kind": "code",
+          "text": "~~~\nunterminated fence. still code"
+        }
+      ]
+    },
+    {
+      "input": "",
+      "segments": []
+    },
+    {
+      "input": "   \n\n  ",
+      "segments": []
+    },
+    {
+      "input": "No terminator at all",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "No terminator at all"
+        }
+      ]
+    },
+    {
+      "input": "Ends with abbrev etc.",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "Ends with abbrev etc."
+        }
+      ]
+    },
+    {
+      "input": "Quote test. \"He said no.\" Then left. (Really.) [Yes.]",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "Quote test."
+        },
+        {
+          "kind": "sentence",
+          "text": "\"He said no.\""
+        },
+        {
+          "kind": "sentence",
+          "text": "Then left."
+        },
+        {
+          "kind": "sentence",
+          "text": "(Really.)"
+        },
+        {
+          "kind": "sentence",
+          "text": "[Yes.]"
+        }
+      ]
+    },
+    {
+      "input": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a customer support agent for Acme Cloud, a SaaS billing platform."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Greet the customer by name if they provide one."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the relevant policy ID (format: POL-###) when explaining a decision."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Never promise a refund; refunds require manager approval — offer to escalate instead."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Keep responses under 4 sentences."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If you don't know an answer, say so and offer to open a support ticket."
+        }
+      ]
+    },
+    {
+      "input": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses brief — ideally 2-3 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a customer support agent for Acme Cloud, a SaaS billing platform."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Greet the customer by name if they provide one."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the relevant policy ID (format: POL-###) when explaining a decision."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Never promise a refund; refunds require manager approval — offer to escalate instead."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Keep responses brief — ideally 2-3 sentences."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If you don't know an answer, say so and offer to open a support ticket."
+        }
+      ]
+    },
+    {
+      "input": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n- Always end by asking if there's anything else you can help with.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a customer support agent for Acme Cloud, a SaaS billing platform."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Greet the customer by name if they provide one."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the relevant policy ID (format: POL-###) when explaining a decision."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Never promise a refund; refunds require manager approval — offer to escalate instead."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Keep responses under 4 sentences."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If you don't know an answer, say so and offer to open a support ticket."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Always end by asking if there's anything else you can help with."
+        }
+      ]
+    },
+    {
+      "input": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer by name if they provide one.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a customer support agent for Acme Cloud, a SaaS billing platform."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Greet the customer by name if they provide one."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the relevant policy ID (format: POL-###) when explaining a decision."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Keep responses under 4 sentences."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If you don't know an answer, say so and offer to open a support ticket."
+        }
+      ]
+    },
+    {
+      "input": "You are a warm, empathetic customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Greet the customer warmly and acknowledge their feelings before addressing the issue.\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- Keep responses under 4 sentences.\n- If you don't know an answer, say so and offer to open a support ticket.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a warm, empathetic customer support agent for Acme Cloud, a SaaS billing platform."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Greet the customer warmly and acknowledge their feelings before addressing the issue."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the relevant policy ID (format: POL-###) when explaining a decision."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Never promise a refund; refunds require manager approval — offer to escalate instead."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Keep responses under 4 sentences."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If you don't know an answer, say so and offer to open a support ticket."
+        }
+      ]
+    },
+    {
+      "input": "You are a customer support agent for Acme Cloud, a SaaS billing platform.\n\n- Cite the relevant policy ID (format: POL-###) when explaining a decision.\n- Never promise a refund; refunds require manager approval — offer to escalate instead.\n- If you don't know an answer, say so and offer to open a support ticket.\n- Keep responses under 4 sentences.\n- Greet the customer by name if they provide one.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a customer support agent for Acme Cloud, a SaaS billing platform."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Cite the relevant policy ID (format: POL-###) when explaining a decision."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Never promise a refund; refunds require manager approval — offer to escalate instead."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If you don't know an answer, say so and offer to open a support ticket."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Keep responses under 4 sentences."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Greet the customer by name if they provide one."
+        }
+      ]
+    },
+    {
+      "input": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a senior code reviewer for a Python backend team."
+        },
+        {
+          "kind": "sentence",
+          "text": "Review the submitted diff."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Flag correctness bugs, security issues, and performance problems; ignore pure style nits."
+        },
+        {
+          "kind": "list-item",
+          "text": "- For each finding, cite the file and line and give a concrete fix."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Be direct but respectful; do not rubber-stamp."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If the diff looks correct, say so explicitly rather than inventing issues."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Limit the review to the 5 most important findings."
+        }
+      ]
+    },
+    {
+      "input": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; deprioritize style nits but mention them briefly.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a senior code reviewer for a Python backend team."
+        },
+        {
+          "kind": "sentence",
+          "text": "Review the submitted diff."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Flag correctness bugs, security issues, and performance problems; deprioritize style nits but mention them briefly."
+        },
+        {
+          "kind": "list-item",
+          "text": "- For each finding, cite the file and line and give a concrete fix."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Be direct but respectful; do not rubber-stamp."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If the diff looks correct, say so explicitly rather than inventing issues."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Limit the review to the 5 most important findings."
+        }
+      ]
+    },
+    {
+      "input": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Start your review with a one-line verdict: APPROVE or REQUEST CHANGES.\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a senior code reviewer for a Python backend team."
+        },
+        {
+          "kind": "sentence",
+          "text": "Review the submitted diff."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Start your review with a one-line verdict: APPROVE or REQUEST CHANGES."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Flag correctness bugs, security issues, and performance problems; ignore pure style nits."
+        },
+        {
+          "kind": "list-item",
+          "text": "- For each finding, cite the file and line and give a concrete fix."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Be direct but respectful; do not rubber-stamp."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If the diff looks correct, say so explicitly rather than inventing issues."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Limit the review to the 5 most important findings."
+        }
+      ]
+    },
+    {
+      "input": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be direct but respectful; do not rubber-stamp.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a senior code reviewer for a Python backend team."
+        },
+        {
+          "kind": "sentence",
+          "text": "Review the submitted diff."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Flag correctness bugs, security issues, and performance problems; ignore pure style nits."
+        },
+        {
+          "kind": "list-item",
+          "text": "- For each finding, cite the file and line and give a concrete fix."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Be direct but respectful; do not rubber-stamp."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If the diff looks correct, say so explicitly rather than inventing issues."
+        }
+      ]
+    },
+    {
+      "input": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- For each finding, cite the file and line and give a concrete fix.\n- Be encouraging and supportive; lead with what's good before raising concerns.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Limit the review to the 5 most important findings.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a senior code reviewer for a Python backend team."
+        },
+        {
+          "kind": "sentence",
+          "text": "Review the submitted diff."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Flag correctness bugs, security issues, and performance problems; ignore pure style nits."
+        },
+        {
+          "kind": "list-item",
+          "text": "- For each finding, cite the file and line and give a concrete fix."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Be encouraging and supportive; lead with what's good before raising concerns."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If the diff looks correct, say so explicitly rather than inventing issues."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Limit the review to the 5 most important findings."
+        }
+      ]
+    },
+    {
+      "input": "You are a senior code reviewer for a Python backend team. Review the submitted diff.\n\n- For each finding, cite the file and line and give a concrete fix.\n- If the diff looks correct, say so explicitly rather than inventing issues.\n- Flag correctness bugs, security issues, and performance problems; ignore pure style nits.\n- Limit the review to the 5 most important findings.\n- Be direct but respectful; do not rubber-stamp.\n",
+      "segments": [
+        {
+          "kind": "sentence",
+          "text": "You are a senior code reviewer for a Python backend team."
+        },
+        {
+          "kind": "sentence",
+          "text": "Review the submitted diff."
+        },
+        {
+          "kind": "list-item",
+          "text": "- For each finding, cite the file and line and give a concrete fix."
+        },
+        {
+          "kind": "list-item",
+          "text": "- If the diff looks correct, say so explicitly rather than inventing issues."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Flag correctness bugs, security issues, and performance problems; ignore pure style nits."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Limit the review to the 5 most important findings."
+        },
+        {
+          "kind": "list-item",
+          "text": "- Be direct but respectful; do not rubber-stamp."
+        }
+      ]
+    }
+  ],
+  "sentences": [
+    {
+      "input": "You are a support agent. Always cite the policy ID. Be concise.",
+      "sentences": [
+        "You are a support agent.",
+        "Always cite the policy ID.",
+        "Be concise."
+      ]
+    },
+    {
+      "input": "Use a tool, e.g. search, when needed. Then answer.",
+      "sentences": [
+        "Use a tool, e.g. search, when needed.",
+        "Then answer."
+      ]
+    },
+    {
+      "input": "See fig. 3 for details. Mr. Smith agrees. Answer carefully!",
+      "sentences": [
+        "See fig. 3 for details.",
+        "Mr. Smith agrees.",
+        "Answer carefully!"
+      ]
+    },
+    {
+      "input": "# System\nYou are a support agent. Always be concise.\n\n- Cite the policy ID\n- Never invent refunds",
+      "sentences": [
+        "# System\nYou are a support agent.",
+        "Always be concise.",
+        "- Cite the policy ID\n- Never invent refunds"
+      ]
+    },
+    {
+      "input": "Return JSON like:\n```\n{ \"a\": 1. \"b\": 2 }\n```\nThen stop.",
+      "sentences": [
+        "Return JSON like:\n```\n{ \"a\": 1.",
+        "\"b\": 2 }\n```\nThen stop."
+      ]
+    },
+    {
+      "input": "Unicode test: café résumé. Über alles? Naïve — yes.",
+      "sentences": [
+        "Unicode test: café résumé. Über alles?",
+        "Naïve — yes."
+      ]
+    },
+    {
+      "input": "1. First step\n2) Second step\n\nProse line one\nwrapped onto line two. Done.",
+      "sentences": [
+        "1.",
+        "First step\n2) Second step\n\nProse line one\nwrapped onto line two.",
+        "Done."
+      ]
+    },
+    {
+      "input": "~~~\nunterminated fence. still code\n",
+      "sentences": [
+        "~~~\nunterminated fence. still code"
+      ]
+    },
+    {
+      "input": "",
+      "sentences": []
+    },
+    {
+      "input": "   \n\n  ",
+      "sentences": []
+    },
+    {
+      "input": "No terminator at all",
+      "sentences": [
+        "No terminator at all"
+      ]
+    },
+    {
+      "input": "Ends with abbrev etc.",
+      "sentences": [
+        "Ends with abbrev etc."
+      ]
+    },
+    {
+      "input": "Quote test. \"He said no.\" Then left. (Really.) [Yes.]",
+      "sentences": [
+        "Quote test.",
+        "\"He said no.\"",
+        "Then left.",
+        "(Really.)",
+        "[Yes.]"
+      ]
+    }
+  ]
+}

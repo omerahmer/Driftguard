@@ -43,8 +43,6 @@ jobs:
 
     env:
       DATABASE_URL: postgres://driftguard:driftguard@localhost:5432/driftguard
-      SQLX_OFFLINE: "true"
-      DRIFTGUARD_LLM_BIN: ./tools/driftguard-llm/driftguard-llm
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -56,10 +54,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
-          cache-dependency-path: tools/driftguard-llm/go.sum
-
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
 
       - name: Apply DB migrations
         run: |
@@ -69,11 +63,8 @@ jobs:
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
           done
 
-      - name: Build Go LLM sidecar
-        run: cd tools/driftguard-llm && go build -o driftguard-llm .
-
-      - name: Build CLI (sqlx offline)
-        run: cargo build -p driftguard-cli
+      - name: Build CLI
+        run: go build -o driftguard ./cmd/driftguard
 
       - name: Extract base (pre-change) fixtures
         run: |
@@ -92,7 +83,7 @@ jobs:
             WARN_FLAG="--warn-only"
           fi
           set +e
-          ./target/debug/driftguard ci \
+          ./driftguard ci \
             --base /tmp/base-fixtures.toml \
             --head fixtures/driftguard-fixtures.toml \
             --threshold "${{ vars.DRIFTGUARD_THRESHOLD || '0.5' }}" \

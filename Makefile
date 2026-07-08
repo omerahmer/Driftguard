@@ -1,38 +1,25 @@
-# Driftguard convenience targets.
+# Driftguard convenience targets (single Go binary since the Go rewrite).
 
-SIDECAR := tools/driftguard-llm/driftguard-llm
+.PHONY: build migrate test api dashboard clean
 
-.PHONY: sidecar build migrate verify test clean api dashboard
-
-# Build the Go LLM sidecar (uses the official anthropic-sdk-go).
-sidecar:
-	cd tools/driftguard-llm && go build -o driftguard-llm .
-
-# Build everything: the Rust workspace + the Go sidecar.
-build: sidecar
-	cargo build
+build:
+	go build -o driftguard ./cmd/driftguard
 
 migrate:
 	sqlx migrate run
 
-# Offline pipeline checks (no API keys needed).
-verify:
-	cargo run -p driftguard-core --example verify_pgvector
-	cargo run -p driftguard-core --example verify_selection
-	cargo run -p driftguard-core --example verify_validation
-	cargo run -p driftguard-core --example verify_ci
-
+# Includes the DB-backed parity/round-trip tests when DATABASE_URL is set
+# (they self-skip otherwise).
 test:
-	cargo test --workspace
+	go test ./...
 
 # Read API (Phase 6) on :3000.
 api:
-	cargo run -p driftguard-api
+	go run ./cmd/driftguard api
 
 # Next.js dashboard (Phase 6) on :3001 — proxies /api to the API above.
 dashboard:
 	cd dashboard && npm run dev
 
 clean:
-	cargo clean
-	rm -f $(SIDECAR)
+	rm -f driftguard
