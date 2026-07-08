@@ -165,11 +165,35 @@ check fails on a selected-eval failure unless the repo variable
 driftguard ci --base /tmp/base.toml --head fixtures/driftguard-fixtures.toml
 ```
 
+## Dashboard (Phase 6)
+
+A read API + web UI over the same `driftguard-core`. The API is a thin,
+read-only second consumer of core (no domain logic, no write path); the
+dashboard renders the registry, diffs, runs, and the precision/recall curve.
+
+```bash
+make api          # axum read API on :3000  (GET /prompts, /prompts/:id/versions,
+                  #                                /versions/:id/runs, /score?prompt=)
+make dashboard    # Next.js dashboard on :3001 (proxies /api -> the API)
+```
+
+- **Stack:** Next.js + Tailwind + recharts → axum (`crates/driftguard-api`,
+  reuses core in-process) → Postgres/pgvector.
+- The diff viewer renders straight from each version's stored `ops`
+  (`diff_from_parent`); the precision/recall chart is **derived state** —
+  computed live per request by `scoring::score`, not stored.
+- Needs data: run `validate` first for the runs table and score chart to be
+  non-empty.
+
 ## Build phases
 
 1. **Cargo workspace + DB schema + migrations** ✅
 2. **CLI scaffolding + prompt versioning/diffing** ✅
 3. **Embedding + similarity-based eval selection** ✅
 4. **Ground-truth validation pipeline (precision/recall)** ✅
-5. **GitHub Action integration** ✅ (current)
-6. axum API + React dashboard
+5. **GitHub Action integration** ✅
+6. **Read API + React dashboard** ✅ (current)
+
+Roadmapped next: live state sync (Postgres `LISTEN/NOTIFY` → SSE), a
+read+scoped-write path with async eval jobs and an in-UI editor/PR workflow,
+token auth, and an embedding impact-analysis view.
