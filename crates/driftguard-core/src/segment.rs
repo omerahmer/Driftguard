@@ -348,13 +348,15 @@ fn ends_with_abbrev(candidate: &str) -> bool {
     let lower = trimmed.to_lowercase();
     let without_dot = &lower[..lower.len() - 1]; // last char is '.', one byte
     for ab in ABBREVS {
-        if let Some(start) = without_dot.len().checked_sub(ab.len())
-            && &without_dot[start..] == *ab
-        {
+        // strip_suffix (not manual byte slicing): an arbitrary byte offset can
+        // land inside a multibyte char and panic (e.g. an em-dash near the end).
+        if let Some(prefix) = without_dot.strip_suffix(ab) {
             // Word-boundary check: the char before the abbrev must not be
             // alphanumeric (so "etc." matches but "xetc." doesn't).
-            let boundary_ok =
-                start == 0 || !without_dot.as_bytes()[start - 1].is_ascii_alphanumeric();
+            let boundary_ok = prefix
+                .as_bytes()
+                .last()
+                .is_none_or(|b| !b.is_ascii_alphanumeric());
             if boundary_ok {
                 return true;
             }
