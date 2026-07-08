@@ -56,3 +56,27 @@ func ListEvalRuns(ctx context.Context, pool *pgxpool.Pool, versionID uuid.UUID) 
 	}
 	return runs, rows.Err()
 }
+
+// CreateEvalCase adds one eval case to a prompt (used by the fixtures loader
+// in bulk; the CLI also exposes a one-off `eval add`).
+func CreateEvalCase(ctx context.Context, pool *pgxpool.Pool, promptName, input, expectedBehavior string) (*EvalCase, error) {
+	prompt, err := GetPromptByName(ctx, pool, promptName)
+	if err != nil {
+		return nil, err
+	}
+	if prompt == nil {
+		return nil, PromptNotFoundError{Name: promptName}
+	}
+	var c EvalCase
+	err = pool.QueryRow(ctx,
+		`INSERT INTO eval_cases (prompt_id, input, expected_behavior)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, prompt_id, input, expected_behavior, created_at`,
+		prompt.ID, input, expectedBehavior).
+		Scan(&c.ID, &c.PromptID, &c.Input, &c.ExpectedBehavior, &c.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	c.CreatedAt = c.CreatedAt.UTC()
+	return &c, nil
+}
