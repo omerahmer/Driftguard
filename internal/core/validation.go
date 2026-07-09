@@ -260,8 +260,11 @@ func maxInt(a, b int) int {
 	return b
 }
 
-// ---- judge-validate support (human spot-check of judge verdicts) ----
+// ---- hand-labeling support (independent human ground truth) ----
 
+// DiffSample is one behavior-diff presented for hand-labeling: the input, the
+// two actual outputs, the judge's verdict (shown for reference, NOT to anchor
+// the labeler), and the current human label if any.
 type DiffSample struct {
 	BehaviorDiffID       uuid.UUID `json:"behavior_diff_id"`
 	Input                string    `json:"input"`
@@ -270,15 +273,22 @@ type DiffSample struct {
 	AfterOutput          string    `json:"after_output"`
 	JudgeBehaviorChanged *bool     `json:"judge_behavior_changed"`
 	JudgeJustification   *string   `json:"judge_justification"`
+	HumanBehaviorChanged *bool     `json:"human_behavior_changed"`
 }
 
-// SampleUnvalidatedDiffs pulls a random sample of judge verdicts that haven't
-// been human-reviewed yet.
-func SampleUnvalidatedDiffs(ctx context.Context, pool *pgxpool.Pool, sampleSize int64) ([]DiffSample, error) {
+// SampleUnlabeledDiffs pulls a random sample of behavior-diffs that don't yet
+// have a human label. sampleSize <= 0 returns all of them.
+func SampleUnlabeledDiffs(ctx context.Context, pool *pgxpool.Pool, sampleSize int64) ([]DiffSample, error) {
+	limit := "ALL"
+	args := []any{}
+	if sampleSize > 0 {
+		limit = "$1"
+		args = append(args, sampleSize)
+	}
 	rows, err := pool.Query(ctx, `
 		SELECT bd.id, ec.input, ec.expected_behavior,
 		       before_run.actual_output, after_run.actual_output,
-		       bd.judge_behavior_changed, bd.judge_justification
+		       bd.judge_behavior_changed, bd.judge_justification, bd.human_behavior_changed
 		FROM behavior_diffs bd
 		JOIN eval_cases ec ON ec.id = bd.eval_case_id
 		JOIN eval_runs before_run
@@ -287,9 +297,9 @@ func SampleUnvalidatedDiffs(ctx context.Context, pool *pgxpool.Pool, sampleSize 
 		JOIN eval_runs after_run
 		     ON after_run.prompt_version_id = bd.prompt_version_after_id
 		    AND after_run.eval_case_id = bd.eval_case_id
-		WHERE bd.human_agreed IS NULL
+		WHERE bd.human_behavior_changed IS NULL
 		ORDER BY random()
-		LIMIT $1`, sampleSize)
+		LIMIT `+limit, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +309,8 @@ func SampleUnvalidatedDiffs(ctx context.Context, pool *pgxpool.Pool, sampleSize 
 	for rows.Next() {
 		var s DiffSample
 		if err := rows.Scan(&s.BehaviorDiffID, &s.Input, &s.ExpectedBehavior,
-			&s.BeforeOutput, &s.AfterOutput, &s.JudgeBehaviorChanged, &s.JudgeJustification); err != nil {
+			&s.BeforeOutput, &s.AfterOutput, &s.JudgeBehaviorChanged, &s.JudgeJustification,
+			&s.HumanBehaviorChanged); err != nil {
 			return nil, err
 		}
 		samples = append(samples, s)
@@ -307,20 +318,113 @@ func SampleUnvalidatedDiffs(ctx context.Context, pool *pgxpool.Pool, sampleSize 
 	return samples, rows.Err()
 }
 
-// SetHumanAgreed records a human's agree/disagree with a judge verdict.
-func SetHumanAgreed(ctx context.Context, pool *pgxpool.Pool, behaviorDiffID uuid.UUID, agreed bool) error {
+// ListBehaviorDiffs returns every behavior-diff (labeled and not) with its
+// before/after outputs and current labels, oldest first — the stable list the
+// dashboard labeling view renders. onlyUnlabeled restricts to rows still
+// needing a human label.
+func ListBehaviorDiffs(ctx context.Context, pool *pgxpool.Pool, onlyUnlabeled bool) ([]DiffSample, error) {
+	where := ""
+	if onlyUnlabeled {
+		where = "WHERE bd.human_behavior_changed IS NULL"
+	}
+	rows, err := pool.Query(ctx, `
+		SELECT bd.id, ec.input, ec.expected_behavior,
+		       before_run.actual_output, after_run.actual_output,
+		       bd.judge_behavior_changed, bd.judge_justification, bd.human_behavior_changed
+		FROM behavior_diffs bd
+		JOIN eval_cases ec ON ec.id = bd.eval_case_id
+		JOIN eval_runs before_run
+		     ON before_run.prompt_version_id = bd.prompt_version_before_id
+		    AND before_run.eval_case_id = bd.eval_case_id
+		JOIN eval_runs after_run
+		     ON after_run.prompt_version_id = bd.prompt_version_after_id
+		    AND after_run.eval_case_id = bd.eval_case_id
+		`+where+`
+		ORDER BY bd.created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	samples := []DiffSample{}
+	for rows.Next() {
+		var s DiffSample
+		if err := rows.Scan(&s.BehaviorDiffID, &s.Input, &s.ExpectedBehavior,
+			&s.BeforeOutput, &s.AfterOutput, &s.JudgeBehaviorChanged, &s.JudgeJustification,
+			&s.HumanBehaviorChanged); err != nil {
+			return nil, err
+		}
+		samples = append(samples, s)
+	}
+	return samples, rows.Err()
+}
+
+// SetHumanLabel records the INDEPENDENT human judgment of whether behavior
+// changed — the gold ground-truth label, not agreement with the judge.
+func SetHumanLabel(ctx context.Context, pool *pgxpool.Pool, behaviorDiffID uuid.UUID, changed bool) error {
 	_, err := pool.Exec(ctx,
-		`UPDATE behavior_diffs SET human_agreed = $1 WHERE id = $2`, agreed, behaviorDiffID)
+		`UPDATE behavior_diffs SET human_behavior_changed = $1 WHERE id = $2`, changed, behaviorDiffID)
 	return err
 }
 
-// JudgeAgreement returns (agreed, total reviewed) across all human-reviewed
-// verdicts.
-func JudgeAgreement(ctx context.Context, pool *pgxpool.Pool) (int64, int64, error) {
-	var agreed, total int64
-	err := pool.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE human_agreed),
-		       count(*) FILTER (WHERE human_agreed IS NOT NULL)
-		FROM behavior_diffs`).Scan(&agreed, &total)
-	return agreed, total, err
+// JudgeAudit is the judge's performance measured against hand labels, treating
+// the human label as truth: a confusion matrix plus derived rates over the
+// rows a human has labeled. This is how we decide whether the judge is
+// trustworthy enough to stand in for hand-labeling at scale.
+type JudgeAudit struct {
+	Labeled   int     `json:"labeled"`   // rows with both a human and judge verdict
+	TP        int     `json:"tp"`        // judge changed, human changed
+	FP        int     `json:"fp"`        // judge changed, human not
+	FN        int     `json:"fn_"`       // judge not, human changed
+	TN        int     `json:"tn"`        // judge not, human not
+	Agreement float64 `json:"agreement"` // (tp+tn)/labeled
+	Precision float64 `json:"precision"` // of judge "changed", how many humans agreed
+	Recall    float64 `json:"recall"`    // of human "changed", how many judge caught
+}
+
+// ComputeJudgeAudit tabulates the judge vs. human confusion matrix over labeled
+// behavior-diffs.
+func ComputeJudgeAudit(ctx context.Context, pool *pgxpool.Pool) (*JudgeAudit, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT judge_behavior_changed, human_behavior_changed
+		FROM behavior_diffs
+		WHERE human_behavior_changed IS NOT NULL
+		  AND judge_behavior_changed IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	audit := &JudgeAudit{}
+	for rows.Next() {
+		var judge, human bool
+		if err := rows.Scan(&judge, &human); err != nil {
+			return nil, err
+		}
+		audit.Labeled++
+		switch {
+		case judge && human:
+			audit.TP++
+		case judge && !human:
+			audit.FP++
+		case !judge && human:
+			audit.FN++
+		default:
+			audit.TN++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if audit.Labeled > 0 {
+		audit.Agreement = float64(audit.TP+audit.TN) / float64(audit.Labeled)
+	}
+	if audit.TP+audit.FP > 0 {
+		audit.Precision = float64(audit.TP) / float64(audit.TP+audit.FP)
+	}
+	if audit.TP+audit.FN > 0 {
+		audit.Recall = float64(audit.TP) / float64(audit.TP+audit.FN)
+	}
+	return audit, nil
 }

@@ -55,7 +55,23 @@ type ScoreReport struct {
 	Prompt  *string        `json:"prompt"`
 	Samples int            `json:"samples"`
 	Rows    []ThresholdRow `json:"rows"`
+	// GroundTruth is the source of the "actually affected" label the sweep was
+	// scored against: "judge" (the LLM verdict) or "human" (hand labels).
+	GroundTruth string `json:"ground_truth"`
 }
+
+// GroundTruth selects which label the precision/recall sweep is measured
+// against.
+type GroundTruth string
+
+const (
+	// GroundTruthJudge uses the LLM judge's behavior-changed verdict (the
+	// selection_records.was_actually_affected column). Default, scalable.
+	GroundTruthJudge GroundTruth = "judge"
+	// GroundTruthHuman uses the independent hand label
+	// (behavior_diffs.human_behavior_changed). Gold, but only covers labeled rows.
+	GroundTruthHuman GroundTruth = "human"
+)
 
 // sample: one labeled selection record — a similarity score plus both
 // ground-truth bools.
@@ -65,25 +81,43 @@ type sample struct {
 	passFlipped     bool
 }
 
-// Score computes the threshold sweep. prompt (nil for all) filters to one prompt.
-func Score(ctx context.Context, pool *pgxpool.Pool, prompt *string, thresholds []float64) (*ScoreReport, error) {
-	// One row per labeled SelectionRecord. pass_flipped compares the
-	// after-version's judge_passed to the before-version's (the after
-	// version's parent), via two eval_runs joins.
+// Score computes the threshold sweep. prompt (nil for all) filters to one
+// prompt; groundTruth selects the "actually affected" label source.
+func Score(ctx context.Context, pool *pgxpool.Pool, prompt *string, thresholds []float64, groundTruth GroundTruth) (*ScoreReport, error) {
+	if groundTruth == "" {
+		groundTruth = GroundTruthJudge
+	}
+
+	// behavior_changed's source depends on groundTruth:
+	//   judge — sr.was_actually_affected (the copied judge verdict).
+	//   human — bd.human_behavior_changed, joined via the after version + case
+	//           (the same key labelGroundTruth used). Only labeled rows count.
+	// pass_flipped is unchanged: the after-version's judge_passed vs the
+	// before-version's, via two eval_runs joins.
+	behaviorExpr := "sr.was_actually_affected"
+	whereLabeled := "sr.was_actually_affected IS NOT NULL"
+	if groundTruth == GroundTruthHuman {
+		behaviorExpr = "bd.human_behavior_changed"
+		whereLabeled = "bd.human_behavior_changed IS NOT NULL"
+	}
+
 	rows, err := pool.Query(ctx, `
 		SELECT sr.similarity_score AS similarity,
-		       sr.was_actually_affected AS behavior_changed,
+		       `+behaviorExpr+` AS behavior_changed,
 		       (after_run.judge_passed IS DISTINCT FROM before_run.judge_passed) AS pass_flipped
 		FROM selection_records sr
 		JOIN prompt_versions pv ON pv.id = sr.prompt_version_id
 		JOIN prompts p ON p.id = pv.prompt_id
+		LEFT JOIN behavior_diffs bd
+		     ON bd.eval_case_id = sr.eval_case_id
+		    AND bd.prompt_version_after_id = sr.prompt_version_id
 		LEFT JOIN eval_runs after_run
 		     ON after_run.prompt_version_id = sr.prompt_version_id
 		    AND after_run.eval_case_id = sr.eval_case_id
 		LEFT JOIN eval_runs before_run
 		     ON before_run.prompt_version_id = pv.parent_version_id
 		    AND before_run.eval_case_id = sr.eval_case_id
-		WHERE sr.was_actually_affected IS NOT NULL
+		WHERE `+whereLabeled+`
 		  AND ($1::text IS NULL OR p.name = $1)
 	`, prompt)
 	if err != nil {
@@ -139,7 +173,7 @@ func Score(ctx context.Context, pool *pgxpool.Pool, prompt *string, thresholds [
 		})
 	}
 
-	return &ScoreReport{Prompt: prompt, Samples: total, Rows: reportRows}, nil
+	return &ScoreReport{Prompt: prompt, Samples: total, Rows: reportRows, GroundTruth: string(groundTruth)}, nil
 }
 
 type counts struct{ tp, fp, fn, tn int }

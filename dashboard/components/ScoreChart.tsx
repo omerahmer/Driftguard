@@ -17,26 +17,58 @@ import { api, ScoreReport } from "@/lib/api";
 // raw eval runs, not stored. The chart just renders what it's given.
 export function ScoreChart({ promptName }: { promptName: string }) {
   const [report, setReport] = useState<ScoreReport | null>(null);
+  // Which "actually affected" label the curve is scored against.
+  const [groundTruth, setGroundTruth] = useState<"judge" | "human">("judge");
 
   useEffect(() => {
     let active = true;
     setReport(null);
     api
-      .score(promptName)
+      .score(promptName, groundTruth)
       .then((r) => active && setReport(r))
       .catch(() => active && setReport(null));
     return () => {
       active = false;
     };
-  }, [promptName]);
+  }, [promptName, groundTruth]);
 
-  if (!report) return <p className="text-sm text-gray-500">Loading…</p>;
+  const toggle = (
+    <div className="mb-2 flex gap-1 text-xs">
+      {(["judge", "human"] as const).map((g) => (
+        <button
+          key={g}
+          onClick={() => setGroundTruth(g)}
+          className={`rounded px-2 py-0.5 ${
+            groundTruth === g ? "bg-blue-600 text-white" : "border text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          {g === "judge" ? "judge truth" : "hand labels"}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (!report)
+    return (
+      <div>
+        {toggle}
+        <p className="text-sm text-gray-500">Loading…</p>
+      </div>
+    );
   if (report.samples === 0) {
     return (
-      <p className="text-sm text-gray-500">
-        No labeled selections yet — run <code className="rounded bg-gray-100 px-1">driftguard validate</code> to
-        populate the curve.
-      </p>
+      <div>
+        {toggle}
+        <p className="text-sm text-gray-500">
+          {groundTruth === "human"
+            ? "No hand labels yet — label some behavior diffs below."
+            : "No labeled selections yet — run "}
+          {groundTruth === "judge" && (
+            <code className="rounded bg-gray-100 px-1">driftguard validate</code>
+          )}
+          {groundTruth === "judge" && " to populate the curve."}
+        </p>
+      </div>
     );
   }
 
@@ -49,7 +81,10 @@ export function ScoreChart({ promptName }: { promptName: string }) {
 
   return (
     <div>
-      <div className="mb-2 text-xs text-gray-500">{report.samples} labeled selection records</div>
+      {toggle}
+      <div className="mb-2 text-xs text-gray-500">
+        {report.samples} selection records · {report.ground_truth} ground truth
+      </div>
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: -8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
