@@ -30,6 +30,14 @@ export interface PromptDiff {
   stats: { added: number; removed: number; unchanged: number };
 }
 
+export interface EvalCase {
+  id: string;
+  prompt_id: string;
+  input: string;
+  expected_behavior: string;
+  created_at: string;
+}
+
 export interface EvalRun {
   id: string;
   prompt_version_id: string;
@@ -60,6 +68,29 @@ export interface ScoreReport {
   prompt: string | null;
   samples: number;
   rows: ThresholdRow[];
+  ground_truth: string;
+}
+
+export interface BehaviorDiff {
+  behavior_diff_id: string;
+  input: string;
+  expected_behavior: string;
+  before_output: string;
+  after_output: string;
+  judge_behavior_changed: boolean | null;
+  judge_justification: string | null;
+  human_behavior_changed: boolean | null;
+}
+
+export interface JudgeAudit {
+  labeled: number;
+  tp: number;
+  fp: number;
+  fn_: number;
+  tn: number;
+  agreement: number;
+  precision: number;
+  recall: number;
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -68,12 +99,36 @@ async function get<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    // The API returns { error } on failure — surface it if present.
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error ?? `${res.status} ${res.statusText} for ${path}`);
+  }
+  if (res.status === 204) return undefined as T; // no-content (e.g. label)
+  return res.json();
+}
+
 export const api = {
   prompts: () => get<Prompt[]>("/prompts"),
   versions: (promptId: string) => get<PromptVersion[]>(`/prompts/${promptId}/versions`),
+  evalCases: (promptId: string) => get<EvalCase[]>(`/prompts/${promptId}/eval-cases`),
+  addEvalCase: (promptId: string, input: string, expected_behavior: string) =>
+    post<EvalCase>(`/prompts/${promptId}/eval-cases`, { input, expected_behavior }),
   runs: (versionId: string) => get<EvalRun[]>(`/versions/${versionId}/runs`),
-  score: (promptName: string) =>
-    get<ScoreReport>(`/score?prompt=${encodeURIComponent(promptName)}`),
+  score: (promptName: string, groundTruth: "judge" | "human" = "judge") =>
+    get<ScoreReport>(
+      `/score?prompt=${encodeURIComponent(promptName)}&ground_truth=${groundTruth}`
+    ),
+  behaviorDiffs: () => get<BehaviorDiff[]>("/behavior-diffs"),
+  judgeAudit: () => get<JudgeAudit>("/judge-audit"),
+  label: (behaviorDiffId: string, changed: boolean) =>
+    post<void>(`/behavior-diffs/${behaviorDiffId}/label`, { changed }),
 };
 
 /** Parse a version's stored diff (null for the first version). */

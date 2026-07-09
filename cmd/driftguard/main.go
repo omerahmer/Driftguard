@@ -436,7 +436,7 @@ func judgeValidateCmd() *cobra.Command {
 	var sampleSize int64
 	cmd := &cobra.Command{
 		Use:   "judge-validate",
-		Short: "Human spot-check of judge verdicts; reports agreement rate",
+		Short: "Hand-label behavior diffs (gold ground truth); audits the judge against your labels",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			pool, err := connect(ctx)
@@ -445,53 +445,62 @@ func judgeValidateCmd() *cobra.Command {
 			}
 			defer pool.Close()
 
-			samples, err := core.SampleUnvalidatedDiffs(ctx, pool, sampleSize)
+			samples, err := core.SampleUnlabeledDiffs(ctx, pool, sampleSize)
 			if err != nil {
 				return err
 			}
 			reader := bufio.NewReader(cmd.InOrStdin())
 			for i, s := range samples {
-				verdict := "?"
-				if s.JudgeBehaviorChanged != nil {
-					verdict = fmt.Sprintf("%v", *s.JudgeBehaviorChanged)
-				}
-				fmt.Printf("\n[%d/%d] input: %s\nexpected: %s\n--- before ---\n%s\n--- after ---\n%s\njudge says behavior_changed=%s\n",
-					i+1, len(samples), s.Input, s.ExpectedBehavior, s.BeforeOutput, s.AfterOutput, verdict)
-				fmt.Print("agree? [y/n/s(kip)] ")
+				// You judge independently; the judge's verdict is shown last and
+				// only for reference, so you don't anchor to it.
+				fmt.Printf("\n[%d/%d] input: %s\nexpected: %s\n--- before ---\n%s\n--- after ---\n%s\n",
+					i+1, len(samples), s.Input, s.ExpectedBehavior, s.BeforeOutput, s.AfterOutput)
+				fmt.Print("did behavior change? [y/n/s(kip)] ")
 				line, _ := reader.ReadString('\n')
 				switch strings.TrimSpace(strings.ToLower(line)) {
 				case "y":
-					if err := core.SetHumanAgreed(ctx, pool, s.BehaviorDiffID, true); err != nil {
+					if err := core.SetHumanLabel(ctx, pool, s.BehaviorDiffID, true); err != nil {
 						return err
 					}
 				case "n":
-					if err := core.SetHumanAgreed(ctx, pool, s.BehaviorDiffID, false); err != nil {
+					if err := core.SetHumanLabel(ctx, pool, s.BehaviorDiffID, false); err != nil {
 						return err
 					}
 				}
 			}
-			agreed, total, err := core.JudgeAgreement(ctx, pool)
+
+			audit, err := core.ComputeJudgeAudit(ctx, pool)
 			if err != nil {
 				return err
 			}
-			if total > 0 {
-				fmt.Printf("\njudge agreement: %d/%d (%.0f%%)\n", agreed, total, float64(agreed)/float64(total)*100)
-			} else {
-				fmt.Println("\nno human-reviewed verdicts yet")
+			if jsonOut {
+				return emit(audit)
 			}
+			if audit.Labeled == 0 {
+				fmt.Println("\nno hand-labeled diffs yet")
+				return nil
+			}
+			fmt.Printf("\njudge vs %d hand label(s): agreement %.0f%% | precision %.3f | recall %.3f\n",
+				audit.Labeled, audit.Agreement*100, audit.Precision, audit.Recall)
+			fmt.Printf("  confusion (human=truth): tp=%d fp=%d fn=%d tn=%d\n",
+				audit.TP, audit.FP, audit.FN, audit.TN)
 			return nil
 		},
 	}
-	cmd.Flags().Int64Var(&sampleSize, "sample-size", 10, "verdicts to sample")
+	cmd.Flags().Int64Var(&sampleSize, "sample-size", 10, "diffs to sample (<=0 for all)")
 	return cmd
 }
 
 func scoreCmd() *cobra.Command {
-	var promptName string
+	var promptName, groundTruth string
 	cmd := &cobra.Command{
 		Use:   "score",
 		Short: "Precision/recall/reduction across the threshold sweep",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			gt := core.GroundTruth(groundTruth)
+			if gt != core.GroundTruthJudge && gt != core.GroundTruthHuman {
+				return fmt.Errorf("--ground-truth must be %q or %q", core.GroundTruthJudge, core.GroundTruthHuman)
+			}
 			ctx := cmd.Context()
 			pool, err := connect(ctx)
 			if err != nil {
@@ -502,14 +511,14 @@ func scoreCmd() *cobra.Command {
 			if promptName != "" {
 				filter = &promptName
 			}
-			report, err := core.Score(ctx, pool, filter, core.DefaultThresholds())
+			report, err := core.Score(ctx, pool, filter, core.DefaultThresholds(), gt)
 			if err != nil {
 				return err
 			}
 			if jsonOut {
 				return emit(report)
 			}
-			fmt.Printf("samples: %d\n", report.Samples)
+			fmt.Printf("ground truth: %s | samples: %d\n", report.GroundTruth, report.Samples)
 			fmt.Println("thresh  reduction  behavior P / R      flip P / R")
 			for _, r := range report.Rows {
 				fmt.Printf("%.2f    %5.1f%%     %.3f / %.3f     %.3f / %.3f\n",
@@ -521,6 +530,7 @@ func scoreCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&promptName, "prompt", "", "filter to one prompt")
+	cmd.Flags().StringVar(&groundTruth, "ground-truth", "judge", "label source: judge | human")
 	return cmd
 }
 

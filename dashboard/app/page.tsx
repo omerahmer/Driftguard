@@ -5,6 +5,8 @@ import { api, parseDiff, Prompt, PromptVersion } from "@/lib/api";
 import { DiffView } from "@/components/DiffView";
 import { RunsTable } from "@/components/RunsTable";
 import { ScoreChart } from "@/components/ScoreChart";
+import { EvalCases } from "@/components/EvalCases";
+import { LabelingView } from "@/components/LabelingView";
 
 export default function Home() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -94,6 +96,9 @@ export default function Home() {
               <Card title="Precision / recall vs threshold">
                 <ScoreChart promptName={prompt.name} />
               </Card>
+              <Card title="Eval cases">
+                <EvalCases promptId={prompt.id} />
+              </Card>
             </div>
 
             {version && (
@@ -101,6 +106,10 @@ export default function Home() {
                 <RunsTable versionId={version.id} />
               </Card>
             )}
+
+            <Card title="Hand-label ground truth (gold) — audits the judge">
+              <LabelingView />
+            </Card>
           </>
         )}
       </section>
